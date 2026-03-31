@@ -4,6 +4,7 @@ import { LynxPromptApi } from "../api";
 import { LocalFileTreeItem } from "../views/localFilesTree";
 import { BlueprintType, LinkMapping } from "../types";
 import { pathToBlueprintType, blueprintTypeLabel } from "../utils/fileMapping";
+import { computeFileChecksum } from "../utils/configDetector";
 
 export async function pushConfig(
   api: LynxPromptApi,
@@ -107,13 +108,14 @@ export async function pushConfig(
           title: "Updating blueprint...",
         },
         async () => {
-          const updated = await api.updateBlueprint(linkMapping.blueprintId, {
+          await api.updateBlueprint(linkMapping.blueprintId, {
             content,
           });
+          const localChecksum = await computeFileChecksum(fileUri);
           linkMappings.set(filePath, {
             localPath: filePath,
-            blueprintId: updated.id,
-            lastChecksum: updated.content_checksum,
+            blueprintId: linkMapping.blueprintId,
+            lastChecksum: localChecksum,
           });
         }
       );
@@ -170,11 +172,12 @@ export async function pushConfig(
         content,
       });
 
-      // Store link mapping
+      // Store link mapping with local checksum
+      const localChecksum = await computeFileChecksum(fileUri);
       linkMappings.set(filePath, {
         localPath: filePath,
         blueprintId: created.id,
-        lastChecksum: created.content_checksum,
+        lastChecksum: localChecksum,
       });
     }
   );

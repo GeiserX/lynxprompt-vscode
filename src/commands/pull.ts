@@ -4,6 +4,7 @@ import { LynxPromptApi } from "../api";
 import { BlueprintTreeItem } from "../views/blueprintTree";
 import { LinkMapping } from "../types";
 import { blueprintTypeToPath } from "../utils/fileMapping";
+import { computeFileChecksum } from "../utils/configDetector";
 
 export async function pullBlueprint(
   api: LynxPromptApi,
@@ -117,8 +118,9 @@ export async function pullBlueprint(
     const existingText = Buffer.from(existingContent).toString("utf-8");
 
     if (existingText === blueprint.content) {
-      // Already up to date — update mapping and open
-      updateLinkMapping(linkMappings, absolutePath, blueprint.id, blueprint.content_checksum);
+      // Already up to date — update mapping with local checksum and open
+      const localChecksum = await computeFileChecksum(targetUri);
+      updateLinkMapping(linkMappings, absolutePath, blueprint.id, localChecksum);
       const doc = await vscode.workspace.openTextDocument(targetUri);
       await vscode.window.showTextDocument(doc);
       vscode.window.showInformationMessage(
@@ -186,8 +188,9 @@ export async function pullBlueprint(
   const content = Buffer.from(blueprint.content, "utf-8");
   await vscode.workspace.fs.writeFile(targetUri, content);
 
-  // Update link mapping
-  updateLinkMapping(linkMappings, absolutePath, blueprint.id, blueprint.content_checksum);
+  // Update link mapping with local checksum (matches what configDetector computes)
+  const localChecksum = await computeFileChecksum(targetUri);
+  updateLinkMapping(linkMappings, absolutePath, blueprint.id, localChecksum);
 
   // Open the pulled file
   const doc = await vscode.workspace.openTextDocument(targetUri);
