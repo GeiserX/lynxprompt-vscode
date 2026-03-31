@@ -9,7 +9,7 @@ import { blueprintTypeToPath } from "../utils/fileMapping";
 export async function diffBlueprint(
   api: LynxPromptApi,
   linkMappings: Map<string, LinkMapping>,
-  item?: BlueprintTreeItem | LocalFileTreeItem
+  item?: BlueprintTreeItem | LocalFileTreeItem | vscode.Uri
 ): Promise<void> {
   if (!api.isAuthenticated) {
     vscode.window.showErrorMessage("Please sign in to LynxPrompt first.");
@@ -24,6 +24,12 @@ export async function diffBlueprint(
   } else if (item instanceof LocalFileTreeItem) {
     localFilePath = item.configFile.absolutePath;
     blueprintId = item.configFile.linkedBlueprintId;
+  } else if (item instanceof vscode.Uri) {
+    localFilePath = item.fsPath;
+    const mapping = linkMappings.get(item.fsPath);
+    if (mapping) {
+      blueprintId = mapping.blueprintId;
+    }
   }
 
   if (!blueprintId) {

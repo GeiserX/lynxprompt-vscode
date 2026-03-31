@@ -236,8 +236,7 @@ async function handleFileChange(
     if (action === "Push Changes") {
       await vscode.commands.executeCommand("lynxprompt.pushConfig", uri);
     } else if (action === "Show Diff") {
-      // Find the tree item for this file and diff
-      await vscode.commands.executeCommand("lynxprompt.diffBlueprint");
+      await vscode.commands.executeCommand("lynxprompt.diffBlueprint", uri);
     }
 
     localFilesTree.refresh();
