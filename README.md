@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="media/banner.svg" alt="LynxPrompt for VS Code banner" width="900"/>
+  <img src="media/banner.png" alt="LynxPrompt for VS Code banner" width="900"/>
 </p>
 
 <p align="center">
