@@ -1,112 +1,123 @@
-# LynxPrompt for VS Code
+<p align="center">
+  <img src="media/marketplace-banner.png" alt="LynxPrompt for VS Code banner" width="960"/>
+</p>
 
-Manage AI IDE configuration files across 30+ AI coding tools directly from VS Code.
+<h1 align="center">LynxPrompt for VS Code</h1>
 
-LynxPrompt helps you create, sync, and manage configuration files for Claude, Cursor, GitHub Copilot, Windsurf, and many more AI coding assistants -- all from a single platform.
+<p align="center">
+  Browse, pull, diff, and push AI config files directly from VS Code.
+</p>
 
-## Features
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/v/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Marketplace" alt="Marketplace version"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/i/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Installs" alt="Marketplace installs"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/r/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Rating" alt="Marketplace rating"></a>
+  <a href="https://github.com/GeiserX/lynxprompt-vscode/blob/main/LICENSE"><img src="https://img.shields.io/github/license/GeiserX/lynxprompt-vscode?style=flat-square" alt="License"></a>
+</p>
 
-### Sidebar Tree View
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><strong>Install from VS Code Marketplace</strong></a>
+  ·
+  <a href="vscode:extension/LynxPrompt.lynxprompt"><strong>Open in VS Code</strong></a>
+  ·
+  <a href="https://github.com/GeiserX/lynxprompt-vscode"><strong>Source Code</strong></a>
+</p>
 
-Browse your LynxPrompt blueprints and local AI config files in a dedicated sidebar panel.
+LynxPrompt helps you create, sync, and manage AI IDE configuration files for Claude, Cursor, GitHub Copilot, Windsurf, and many more tools from a single place. This extension brings that workflow directly into the editor, so you can manage cloud blueprints and local config files without context-switching to the browser.
 
-- **My Blueprints**: View all your cloud blueprints, grouped by type (CLAUDE_MD, CURSOR_RULES, etc.)
-- **Local Config Files**: Auto-detects AI configuration files in your workspace with sync status indicators
+## Install
 
-<!-- Screenshot: sidebar tree view showing blueprints grouped by type and local files with status icons -->
+Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt) or run:
 
-### Authentication
+```bash
+ext install LynxPrompt.lynxprompt
+```
 
-Sign in to LynxPrompt using the secure device flow -- no need to paste tokens manually.
+## What You Can Do
 
-1. Run **LynxPrompt: Sign In** from the command palette
-2. A browser window opens for you to authenticate
-3. The extension automatically receives your token
+### Browse Blueprints and Local Files
 
-<!-- Screenshot: sign-in flow with browser window and status bar indicator -->
+Use the dedicated sidebar to see your LynxPrompt blueprints and the AI config files detected in the current workspace.
 
-### Pull Blueprints
+- **My Blueprints** shows cloud blueprints grouped by type
+- **Local Config Files** shows workspace files with sync status indicators
 
-Download blueprints from LynxPrompt to your workspace with a single click. The extension automatically places files in the correct location based on blueprint type.
+### Sign In with Device Flow
 
-- CLAUDE_MD blueprints go to `CLAUDE.md`
-- CURSOR_RULES blueprints go to `.cursor/rules/`
-- COPILOT_INSTRUCTIONS go to `.github/copilot-instructions.md`
-- And more...
+Authenticate securely without copying tokens by hand.
 
-<!-- Screenshot: pull blueprint action in tree view -->
+1. Run **LynxPrompt: Sign In**
+2. Complete authentication in your browser
+3. Return to VS Code and start browsing your blueprints
 
-### Push Local Configs
+### Pull Blueprints into the Right Paths
 
-Right-click any AI config file to push it to LynxPrompt as a blueprint. The extension auto-detects the blueprint type from the filename.
+Download a blueprint and let the extension place it in the correct workspace location automatically.
 
-<!-- Screenshot: right-click context menu with "Push to LynxPrompt" option -->
+- `CLAUDE.md`
+- `AGENTS.md`
+- `.cursor/rules/`
+- `.github/copilot-instructions.md`
+- `.windsurfrules`
 
-### Diff and Sync
+### Push Local Configs Back to LynxPrompt
 
-Compare local files against their cloud counterparts using the VS Code diff editor. Sync changes in either direction with a single click.
+Right-click a supported file or use the command palette to upload local configs as blueprints.
 
-<!-- Screenshot: diff editor showing local vs cloud differences -->
+### Diff Local vs Cloud
 
-### Generate Config
+Open the built-in VS Code diff editor to compare a local file with its linked cloud blueprint before deciding what to keep.
 
-Open the LynxPrompt wizard in your browser to generate new AI configuration files with an interactive step-by-step process.
+### Generate and Convert
 
-### Convert Between Formats
+Open the LynxPrompt wizard in your browser to generate new configs, or convert supported config formats locally.
 
-Convert AI configuration files between different formats locally (e.g., CLAUDE_MD to CURSOR_RULES content structure).
+### Watch for Drift
 
-### File Watchers
-
-The extension monitors linked AI config files for changes and notifies you when local files diverge from their cloud versions.
+The extension monitors linked config files and notifies you when local files diverge from the cloud version.
 
 ## Requirements
 
-- VS Code 1.85.0 or later
-- A LynxPrompt account (free at [lynxprompt.com](https://lynxprompt.com))
-
-## Extension Settings
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `lynxprompt.apiUrl` | `https://lynxprompt.com` | Base URL for the LynxPrompt API. Change for self-hosted instances. |
-| `lynxprompt.autoDetectConfigFiles` | `true` | Automatically detect AI configuration files in the workspace. |
-| `lynxprompt.watchFileChanges` | `true` | Watch linked files and notify on divergence from cloud. |
-| `lynxprompt.showStatusBar` | `true` | Show connection status in the status bar. |
+- VS Code `1.85.0` or later
+- A LynxPrompt account at [lynxprompt.com](https://lynxprompt.com)
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| LynxPrompt: Sign In | Authenticate with LynxPrompt using device flow |
-| LynxPrompt: Sign Out | Clear stored credentials |
-| LynxPrompt: Refresh Blueprints | Reload blueprint list from the cloud |
-| LynxPrompt: Refresh Local Files | Rescan workspace for AI config files |
-| LynxPrompt: Pull Blueprint to Workspace | Download a blueprint to the correct file path |
-| LynxPrompt: Push to LynxPrompt | Upload a local config file as a blueprint |
-| LynxPrompt: Compare with Cloud | Open diff editor for local vs cloud |
-| LynxPrompt: Generate Config | Open the LynxPrompt wizard in your browser |
-| LynxPrompt: Convert Format | Convert between AI config formats |
+| `LynxPrompt: Sign In` | Authenticate with LynxPrompt using device flow |
+| `LynxPrompt: Sign Out` | Clear stored credentials |
+| `LynxPrompt: Refresh Blueprints` | Reload blueprint list from the cloud |
+| `LynxPrompt: Refresh Local Files` | Rescan the workspace for AI config files |
+| `LynxPrompt: Pull Blueprint to Workspace` | Download a blueprint to the correct file path |
+| `LynxPrompt: Push to LynxPrompt` | Upload a local config file as a blueprint |
+| `LynxPrompt: Compare with Cloud` | Open the diff editor for local vs cloud |
+| `LynxPrompt: Generate Config` | Open the LynxPrompt wizard in your browser |
+| `LynxPrompt: Convert Format` | Convert between supported AI config formats |
 
-## Self-Hosting
+## Extension Settings
 
-If you run your own LynxPrompt instance, change the API URL in settings:
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `lynxprompt.apiUrl` | `https://lynxprompt.com` | Base URL for the LynxPrompt API. |
+| `lynxprompt.autoDetectConfigFiles` | `true` | Automatically detect AI configuration files in the workspace. |
+| `lynxprompt.watchFileChanges` | `true` | Watch linked files and notify on divergence from cloud. |
+| `lynxprompt.showStatusBar` | `true` | Show connection status in the status bar. |
 
-```json
-{
-  "lynxprompt.apiUrl": "https://lynxprompt.yourdomain.com"
-}
+## Development
+
+```bash
+npm install
+npm run watch
+npm run build
+npm run package
 ```
 
-## Icon
-
-The extension icon is a lynx silhouette in a prompt-bracket motif, referencing both the "Lynx" name and the "Prompt" concept. Place a 128x128 PNG at `media/icon.png` for the marketplace listing.
-
-The activity bar icon (`media/icon.svg`) is a simplified monochrome version suitable for VS Code's sidebar.
+Press `F5` in VS Code to launch the Extension Development Host.
 
 ## Contributing
 
-Contributions are welcome. Please open an issue first to discuss what you would like to change.
+Contributions are welcome. Open an issue first to discuss substantial changes.
 
 ## License
 
