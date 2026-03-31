@@ -27,6 +27,9 @@ export interface Blueprint {
   favorites: number;
   content: string;
   content_checksum: string;
+  repository_path: string | null;
+  hierarchy_id: string | null;
+  parent_id: string | null;
   created_at: string;
   updated_at: string;
 }

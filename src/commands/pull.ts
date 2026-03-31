@@ -80,8 +80,10 @@ export async function pullBlueprint(
     targetFolder = picked;
   }
 
-  // Compute target path
-  const relativePath = blueprintTypeToPath(blueprint.type, blueprint.name);
+  // Compute target path: prefer repository_path if set, otherwise derive from type
+  const relativePath = blueprint.repository_path
+    ? blueprint.repository_path
+    : blueprintTypeToPath(blueprint.type, blueprint.name);
   const absolutePath = path.join(targetFolder.uri.fsPath, relativePath);
   const targetUri = vscode.Uri.file(absolutePath);
 
