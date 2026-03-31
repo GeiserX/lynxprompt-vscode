@@ -19,6 +19,22 @@ export async function pullBlueprint(
 
   if (item instanceof BlueprintTreeItem) {
     blueprintId = item.blueprint.id;
+
+    // Check if this blueprint is already linked to a local file
+    const existingPath = findLocalPathForBlueprint(linkMappings, blueprintId);
+    if (existingPath) {
+      try {
+        const uri = vscode.Uri.file(existingPath);
+        await vscode.workspace.fs.stat(uri);
+        // File exists — just open it
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+        return;
+      } catch {
+        // File was deleted — remove stale mapping, proceed with pull
+        linkMappings.delete(existingPath);
+      }
+    }
   } else {
     // Prompt the user to pick a blueprint
     const response = await api.listBlueprints(200);
@@ -97,16 +113,17 @@ export async function pullBlueprint(
   }
 
   if (fileExists) {
-    // Show diff before overwriting
     const existingContent = await vscode.workspace.fs.readFile(targetUri);
     const existingText = Buffer.from(existingContent).toString("utf-8");
 
     if (existingText === blueprint.content) {
+      // Already up to date — update mapping and open
+      updateLinkMapping(linkMappings, absolutePath, blueprint.id, blueprint.content_checksum);
+      const doc = await vscode.workspace.openTextDocument(targetUri);
+      await vscode.window.showTextDocument(doc);
       vscode.window.showInformationMessage(
         `${relativePath} is already up to date.`
       );
-      // Update link mapping
-      updateLinkMapping(linkMappings, absolutePath, blueprint.id, blueprint.content_checksum);
       return;
     }
 
@@ -119,12 +136,8 @@ export async function pullBlueprint(
     );
 
     if (choice === "Show Diff") {
-      // Create a temporary file for diff
       const cloudContent = Buffer.from(blueprint.content, "utf-8");
-      const tempDir = path.join(
-        targetFolder.uri.fsPath,
-        ".lynxprompt-tmp"
-      );
+      const tempDir = path.join(targetFolder.uri.fsPath, ".lynxprompt-tmp");
       const tempPath = path.join(
         tempDir,
         `${blueprint.id}-cloud${path.extname(relativePath) || ".md"}`
@@ -141,7 +154,6 @@ export async function pullBlueprint(
         `${relativePath} (Local) <-> ${blueprint.name} (Cloud)`
       );
 
-      // Ask again after showing diff
       const overwrite = await vscode.window.showWarningMessage(
         `Overwrite local ${relativePath} with cloud version?`,
         "Overwrite",
@@ -177,12 +189,28 @@ export async function pullBlueprint(
   // Update link mapping
   updateLinkMapping(linkMappings, absolutePath, blueprint.id, blueprint.content_checksum);
 
+  // Open the pulled file
+  const doc = await vscode.workspace.openTextDocument(targetUri);
+  await vscode.window.showTextDocument(doc);
+
   vscode.window.showInformationMessage(
     `Blueprint "${blueprint.name}" pulled to ${relativePath}`
   );
 
   // Refresh local files tree
   await vscode.commands.executeCommand("lynxprompt.refreshLocalFiles");
+}
+
+function findLocalPathForBlueprint(
+  linkMappings: Map<string, LinkMapping>,
+  blueprintId: string
+): string | undefined {
+  for (const [localPath, mapping] of linkMappings) {
+    if (mapping.blueprintId === blueprintId) {
+      return localPath;
+    }
+  }
+  return undefined;
 }
 
 function updateLinkMapping(
