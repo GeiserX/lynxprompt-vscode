@@ -142,22 +142,25 @@ export class LynxPromptApi {
   }
 
   async getBlueprint(id: string): Promise<Blueprint> {
-    return this.request<Blueprint>("GET", `/api/v1/blueprints/${encodeURIComponent(id)}`);
+    const response = await this.request<{ blueprint: Blueprint }>("GET", `/api/v1/blueprints/${encodeURIComponent(id)}`);
+    return response.blueprint;
   }
 
   async createBlueprint(data: CreateBlueprintRequest): Promise<Blueprint> {
-    return this.request<Blueprint>("POST", "/api/v1/blueprints", data);
+    const response = await this.request<{ blueprint: Blueprint }>("POST", "/api/v1/blueprints", data);
+    return response.blueprint;
   }
 
   async updateBlueprint(
     id: string,
     data: UpdateBlueprintRequest
   ): Promise<Blueprint> {
-    return this.request<Blueprint>(
+    const response = await this.request<{ blueprint: Blueprint }>(
       "PUT",
       `/api/v1/blueprints/${encodeURIComponent(id)}`,
       data
     );
+    return response.blueprint;
   }
 
   async deleteBlueprint(id: string): Promise<void> {
