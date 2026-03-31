@@ -3,11 +3,6 @@ name: Publish Extension
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '*.md'
-      - 'LICENSE'
-      - '.github/FUNDING.yml'
-      - '.github/dependabot.yml'
 
   workflow_dispatch:
 
@@ -46,7 +41,11 @@ jobs:
           NEW=$(npx semver "$CURRENT" -i patch)
           npm version "$NEW" --no-git-tag-version
           echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "Bumped $CURRENT → $NEW"
+
+      - name: Package VSIX
+        run: npx @vscode/vsce package --no-git-tag-version -o "lynxprompt-${{ steps.version.outputs.version }}.vsix"
 
       - name: Publish to VS Code Marketplace
         run: npx @vscode/vsce publish --no-git-tag-version -p "$VSCE_PAT"
@@ -54,14 +53,30 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish to Open VSX Registry
-        run: npx ovsx publish --no-dependencies -p "$OVSX_PAT" || true
+        run: npx ovsx publish "lynxprompt-${{ steps.version.outputs.version }}.vsix" -p "$OVSX_PAT" || true
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
-      - name: Commit version bump
+      - name: Commit version bump and tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
           git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          git tag "v${{ steps.version.outputs.version }}"
           git push
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            ## LynxPrompt for VS Code v${{ steps.version.outputs.version }}
+
+            **Install:** [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt) · `ext install LynxPrompt.lynxprompt`
+
+            **Full changelog:** [`v${{ steps.version.outputs.current }}...v${{ steps.version.outputs.version }}`](https://github.com/GeiserX/lynxprompt-vscode/compare/v${{ steps.version.outputs.current }}...v${{ steps.version.outputs.version }})
+          files: lynxprompt-${{ steps.version.outputs.version }}.vsix
+          generate_release_notes: true

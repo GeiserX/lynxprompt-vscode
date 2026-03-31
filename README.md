@@ -1,29 +1,48 @@
 <p align="center">
-  <img src="media/marketplace-banner.png" alt="LynxPrompt for VS Code banner" width="960"/>
+  <img src="media/banner.svg" alt="LynxPrompt for VS Code banner" width="900"/>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/GeiserX/LynxPrompt/main/public/logo.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/GeiserX/LynxPrompt/main/public/logo.png">
+    <img alt="LynxPrompt" src="https://raw.githubusercontent.com/GeiserX/LynxPrompt/main/public/logo.png" width="120">
+  </picture>
 </p>
 
 <h1 align="center">LynxPrompt for VS Code</h1>
 
 <p align="center">
-  Browse, pull, diff, and push AI config files directly from VS Code.
+  <strong>Browse, pull, diff, and push AI config files directly from the editor</strong>
 </p>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/v/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Marketplace" alt="Marketplace version"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/i/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Installs" alt="Marketplace installs"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/r/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Rating" alt="Marketplace rating"></a>
-  <a href="https://github.com/GeiserX/lynxprompt-vscode/blob/main/LICENSE"><img src="https://img.shields.io/github/license/GeiserX/lynxprompt-vscode?style=flat-square" alt="License"></a>
+  <a href="https://github.com/GeiserX/lynxprompt-vscode/releases"><img src="https://img.shields.io/github/v/release/GeiserX/lynxprompt-vscode?style=flat-square&logo=github&label=Release" alt="GitHub Release"></a>
+  <a href="https://github.com/GeiserX/lynxprompt-vscode"><img src="https://img.shields.io/github/stars/GeiserX/lynxprompt-vscode?style=flat-square&logo=github" alt="GitHub Stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><strong>Install from VS Code Marketplace</strong></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><strong>Install from Marketplace</strong></a>
   ·
   <a href="vscode:extension/LynxPrompt.lynxprompt"><strong>Open in VS Code</strong></a>
   ·
-  <a href="https://github.com/GeiserX/lynxprompt-vscode"><strong>Source Code</strong></a>
+  <a href="https://lynxprompt.com"><strong>LynxPrompt Platform</strong></a>
+  ·
+  <a href="https://github.com/GeiserX/LynxPrompt"><strong>Main Repository</strong></a>
 </p>
 
-LynxPrompt helps you create, sync, and manage AI IDE configuration files for Claude, Cursor, GitHub Copilot, Windsurf, and many more tools from a single place. This extension brings that workflow directly into the editor, so you can manage cloud blueprints and local config files without context-switching to the browser.
+---
+
+## What is this?
+
+The official VS Code extension for [LynxPrompt](https://lynxprompt.com) — a self-hostable platform for managing AI IDE configuration files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`, `copilot-instructions.md`, `.windsurfrules`, and 30+ more formats).
+
+This extension brings LynxPrompt directly into your editor so you can manage cloud blueprints and local config files without switching to the browser.
+
+---
 
 ## Install
 
@@ -33,7 +52,7 @@ Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/item
 ext install LynxPrompt.lynxprompt
 ```
 
-## What You Can Do
+## Features
 
 ### Browse Blueprints and Local Files
 
@@ -76,11 +95,6 @@ Open the LynxPrompt wizard in your browser to generate new configs, or convert s
 
 The extension monitors linked config files and notifies you when local files diverge from the cloud version.
 
-## Requirements
-
-- VS Code `1.85.0` or later
-- A LynxPrompt account at [lynxprompt.com](https://lynxprompt.com)
-
 ## Commands
 
 | Command | Description |
@@ -104,13 +118,28 @@ The extension monitors linked config files and notifies you when local files div
 | `lynxprompt.watchFileChanges` | `true` | Watch linked files and notify on divergence from cloud. |
 | `lynxprompt.showStatusBar` | `true` | Show connection status in the status bar. |
 
+## Self-Hosting
+
+If you run your own LynxPrompt instance, change the API URL in settings:
+
+```json
+{
+  "lynxprompt.apiUrl": "https://lynxprompt.yourdomain.com"
+}
+```
+
+## Requirements
+
+- VS Code `1.85.0` or later
+- A LynxPrompt account at [lynxprompt.com](https://lynxprompt.com)
+
 ## Development
 
 ```bash
 npm install
-npm run watch
-npm run build
-npm run package
+npm run watch   # dev mode with auto-rebuild
+npm run build   # production build
+npm run package # create .vsix
 ```
 
 Press `F5` in VS Code to launch the Extension Development Host.

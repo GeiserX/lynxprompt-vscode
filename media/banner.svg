@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 200" width="900" height="200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1022"/>
+      <stop offset="100%" stop-color="#132757"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#52A3FF"/>
+      <stop offset="100%" stop-color="#8E7DFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="200" rx="12" fill="url(#bg)"/>
+
+  <!-- Subtle grid -->
+  <g stroke="#ffffff" stroke-opacity="0.03" stroke-width="1">
+    <line x1="0" y1="50" x2="900" y2="50"/>
+    <line x1="0" y1="100" x2="900" y2="100"/>
+    <line x1="0" y1="150" x2="900" y2="150"/>
+    <line x1="150" y1="0" x2="150" y2="200"/>
+    <line x1="300" y1="0" x2="300" y2="200"/>
+    <line x1="450" y1="0" x2="450" y2="200"/>
+    <line x1="600" y1="0" x2="600" y2="200"/>
+    <line x1="750" y1="0" x2="750" y2="200"/>
+  </g>
+
+  <!-- Accent glow circles -->
+  <circle cx="80" cy="60" r="60" fill="#2D5BFF" fill-opacity="0.08"/>
+  <circle cx="820" cy="140" r="80" fill="#7E64FF" fill-opacity="0.08"/>
+
+  <!-- VS Code icon stylized -->
+  <g transform="translate(60, 55)">
+    <rect x="0" y="0" width="90" height="90" rx="16" fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.6"/>
+    <rect x="8" y="8" width="74" height="74" rx="12" fill="#0F1A38"/>
+    <!-- Code brackets -->
+    <text x="20" y="58" font-family="monospace" font-size="32" fill="#52A3FF" opacity="0.9">&lt;/&gt;</text>
+  </g>
+
+  <!-- Title -->
+  <text x="185" y="90" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="44" font-weight="700" fill="#ffffff" letter-spacing="-1">
+    LynxPrompt
+  </text>
+  <text x="460" y="90" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="44" font-weight="700" fill="#8FB4FF" letter-spacing="-1">
+    for VS Code
+  </text>
+
+  <!-- Subtitle -->
+  <text x="187" y="125" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" fill="#C6D3F8" opacity="0.7" letter-spacing="0.3">
+    Browse, pull, diff, and push AI config files directly from the editor
+  </text>
+
+  <!-- Feature pills -->
+  <rect x="185" y="145" width="100" height="28" rx="14" fill="#17346F"/>
+  <text x="200" y="164" fill="#8FD0FF" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="600">Blueprints</text>
+
+  <rect x="295" y="145" width="90" height="28" rx="14" fill="#172F5A"/>
+  <text x="313" y="164" fill="#B8C8FF" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="600">Pull</text>
+
+  <rect x="395" y="145" width="90" height="28" rx="14" fill="#172F5A"/>
+  <text x="413" y="164" fill="#B8C8FF" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="600">Push</text>
+
+  <rect x="495" y="145" width="90" height="28" rx="14" fill="#1B2250"/>
+  <text x="520" y="164" fill="#D7D3FF" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="600">Diff</text>
+
+  <rect x="595" y="145" width="110" height="28" rx="14" fill="#1B2250"/>
+  <text x="611" y="164" fill="#D7D3FF" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="600">File Watch</text>
+
+  <!-- Decorative sidebar preview on right -->
+  <g transform="translate(755, 30)" opacity="0.2">
+    <rect x="0" y="0" width="120" height="140" rx="8" fill="#ffffff"/>
+    <rect x="8" y="12" width="60" height="5" rx="2" fill="#6366F1"/>
+    <rect x="8" y="24" width="104" height="5" rx="2" fill="#6366F1" opacity="0.5"/>
+    <rect x="8" y="36" width="80" height="5" rx="2" fill="#6366F1" opacity="0.3"/>
+    <line x1="8" y1="52" x2="112" y2="52" stroke="#6366F1" stroke-opacity="0.2" stroke-width="1"/>
+    <rect x="8" y="62" width="50" height="5" rx="2" fill="#6366F1" opacity="0.4"/>
+    <rect x="8" y="74" width="90" height="5" rx="2" fill="#6366F1" opacity="0.3"/>
+    <rect x="8" y="86" width="70" height="5" rx="2" fill="#6366F1" opacity="0.25"/>
+    <line x1="8" y1="102" x2="112" y2="102" stroke="#6366F1" stroke-opacity="0.2" stroke-width="1"/>
+    <rect x="8" y="112" width="45" height="5" rx="2" fill="#6366F1" opacity="0.3"/>
+    <rect x="8" y="124" width="80" height="5" rx="2" fill="#6366F1" opacity="0.2"/>
+  </g>
+</svg>
