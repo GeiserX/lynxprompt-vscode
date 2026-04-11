@@ -17,6 +17,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/GeiserX/lynxprompt-vscode/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/GeiserX/lynxprompt-vscode/ci.yml?style=flat-square&logo=github&label=CI" alt="CI"></a>
+  <a href="https://codecov.io/gh/GeiserX/lynxprompt-vscode"><img src="https://img.shields.io/codecov/c/github/GeiserX/lynxprompt-vscode?style=flat-square&logo=codecov&label=Coverage" alt="Coverage"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/v/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Marketplace" alt="Marketplace version"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=LynxPrompt.lynxprompt"><img src="https://img.shields.io/visual-studio-marketplace/i/LynxPrompt.lynxprompt?style=flat-square&logo=visualstudiocode&label=Installs" alt="Marketplace installs"></a>
   <a href="https://github.com/GeiserX/lynxprompt-vscode/releases"><img src="https://img.shields.io/github/v/release/GeiserX/lynxprompt-vscode?style=flat-square&logo=github&label=Release" alt="GitHub Release"></a>
