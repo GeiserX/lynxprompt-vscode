@@ -2,7 +2,7 @@
   "name": "lynxprompt",
   "displayName": "LynxPrompt",
   "description": "Manage AI IDE configuration files (AGENTS.md, CLAUDE.md, .cursor/rules/, copilot-instructions.md, .windsurfrules) across 30+ AI coding tools with LynxPrompt.",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "publisher": "lynxprompt",
   "license": "GPL-3.0-or-later",
   "icon": "media/icon.png",
@@ -15,7 +15,7 @@
     "url": "https://github.com/GeiserX/lynxprompt-vscode/issues"
   },
   "engines": {
-    "vscode": "^1.115.0"
+    "vscode": "^1.116.0"
   },
   "categories": [
     "Other",
