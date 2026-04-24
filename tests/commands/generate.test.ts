@@ -1,94 +1,272 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { window, workspace, env, resetAllMocks } from '../__mocks__/vscode';
+import { generateConfig, convertFormat } from '../../src/commands/generate';
 
-// Test the pure conversion logic extracted from generate.ts
-// These functions are private in the module, so we test the logic patterns directly.
-
-describe('stripFormatHeaders', () => {
-  function stripFormatHeaders(content: string): string {
-    let result = content;
-    result = result.replace(/^---\n[\s\S]*?\n---\n?/, '');
-    result = result.replace(
-      /^#\s+(AGENTS\.md|CLAUDE\.md|Copilot Instructions|Codex Rules)[^\n]*\n*/i,
-      ''
-    );
-    return result.trim();
-  }
-
-  it('strips MDC frontmatter', () => {
-    const input = '---\ndescription: test\nglobs:\nalwaysApply: true\n---\n\nActual content';
-    expect(stripFormatHeaders(input)).toBe('Actual content');
+describe('generateConfig', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetAllMocks();
+    workspace.getConfiguration.mockReturnValue({
+      get: vi.fn().mockImplementation((key: string, defaultValue?: unknown) => {
+        if (key === 'apiUrl') return 'https://lynxprompt.com';
+        return defaultValue;
+      }),
+      update: vi.fn(),
+      has: vi.fn(),
+      inspect: vi.fn(),
+    });
   });
 
-  it('strips AGENTS.md header', () => {
-    const input = '# AGENTS.md\n\nContent here';
-    expect(stripFormatHeaders(input)).toBe('Content here');
+  it('opens wizard URL in browser', async () => {
+    await generateConfig();
+
+    expect(env.openExternal).toHaveBeenCalled();
+    const calledUri = env.openExternal.mock.calls[0][0];
+    expect(calledUri.path).toContain('lynxprompt.com/wizard');
   });
 
-  it('strips CLAUDE.md header', () => {
-    const input = '# CLAUDE.md\n\nContent here';
-    expect(stripFormatHeaders(input)).toBe('Content here');
-  });
+  it('strips trailing slashes from API URL', async () => {
+    workspace.getConfiguration.mockReturnValue({
+      get: vi.fn().mockReturnValue('https://lynxprompt.com///'),
+      update: vi.fn(),
+      has: vi.fn(),
+      inspect: vi.fn(),
+    });
 
-  it('strips Copilot Instructions header', () => {
-    const input = '# Copilot Instructions\n\nContent here';
-    expect(stripFormatHeaders(input)).toBe('Content here');
-  });
+    await generateConfig();
 
-  it('preserves content without known headers', () => {
-    const input = '# My Custom Rules\n\nContent here';
-    expect(stripFormatHeaders(input)).toBe('# My Custom Rules\n\nContent here');
-  });
-
-  it('handles empty content', () => {
-    expect(stripFormatHeaders('')).toBe('');
+    const calledUri = env.openExternal.mock.calls[0][0];
+    expect(calledUri.path).toContain('lynxprompt.com/wizard');
+    expect(calledUri.path).not.toContain('///');
   });
 });
 
-describe('format wrapping', () => {
-  function wrapCursorRules(content: string): string {
-    return `---\ndescription: Project rules\nglobs:\nalwaysApply: true\n---\n\n${content}\n`;
-  }
-
-  function wrapClaudeMd(content: string): string {
-    return `# CLAUDE.md\n\n${content}\n`;
-  }
-
-  function wrapAgentsMd(content: string): string {
-    return `# AGENTS.md\n\n${content}\n`;
-  }
-
-  function wrapCopilotInstructions(content: string): string {
-    return `# Copilot Instructions\n\n${content}\n`;
-  }
-
-  function wrapCodexMd(content: string): string {
-    return `# CODEX.md\n\n${content}\n`;
-  }
-
-  it('wraps cursor rules with frontmatter', () => {
-    const result = wrapCursorRules('My rules');
-    expect(result).toContain('---');
-    expect(result).toContain('alwaysApply: true');
-    expect(result).toContain('My rules');
+describe('convertFormat', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetAllMocks();
   });
 
-  it('wraps CLAUDE.md with header', () => {
-    const result = wrapClaudeMd('My config');
-    expect(result).toBe('# CLAUDE.md\n\nMy config\n');
+  it('shows error when no active editor', async () => {
+    window.activeTextEditor = undefined;
+
+    await convertFormat();
+
+    expect(window.showErrorMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Open an AI config file first')
+    );
   });
 
-  it('wraps AGENTS.md with header', () => {
-    const result = wrapAgentsMd('My config');
-    expect(result).toBe('# AGENTS.md\n\nMy config\n');
+  it('shows warning when file is empty', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => '   ' },
+      edit: vi.fn(),
+    } as any;
+
+    await convertFormat();
+
+    expect(window.showWarningMessage).toHaveBeenCalledWith(
+      'The current file is empty.'
+    );
   });
 
-  it('wraps copilot instructions with header', () => {
-    const result = wrapCopilotInstructions('My config');
-    expect(result).toBe('# Copilot Instructions\n\nMy config\n');
+  it('returns early when user cancels format pick', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => '# Some content' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce(undefined);
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).not.toHaveBeenCalled();
   });
 
-  it('wraps CODEX.md with header', () => {
-    const result = wrapCodexMd('My config');
-    expect(result).toBe('# CODEX.md\n\nMy config\n');
+  it('converts to AGENTS.md format', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'My rules content' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'AGENTS.md', type: 'AGENTS_MD' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('# AGENTS.md'),
+        language: 'markdown',
+      })
+    );
+    expect(window.showTextDocument).toHaveBeenCalled();
+    expect(window.showInformationMessage).toHaveBeenCalledWith(
+      expect.stringContaining('AGENTS.md')
+    );
+  });
+
+  it('converts to CLAUDE.md format', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'My content' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'CLAUDE.md', type: 'CLAUDE_MD' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('# CLAUDE.md'),
+      })
+    );
+  });
+
+  it('converts to Cursor Rules format with frontmatter', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'My content' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({
+      label: 'Cursor Rules (.cursor/rules/*.mdc)',
+      type: 'CURSOR_RULES',
+    });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('alwaysApply: true'),
+      })
+    );
+  });
+
+  it('converts to Copilot Instructions format', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'Rules here' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Copilot Instructions', type: 'COPILOT_INSTRUCTIONS' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('# Copilot Instructions'),
+      })
+    );
+  });
+
+  it('converts to Windsurf Rules (plain text, no wrapping)', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'Plain rules' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Windsurf Rules', type: 'WINDSURF_RULES' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Plain rules',
+      })
+    );
+  });
+
+  it('converts to Cline Rules (plain text)', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'Cline content' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Cline Rules', type: 'CLINE_RULES' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Cline content',
+      })
+    );
+  });
+
+  it('converts to Codex Rules format', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'Codex stuff' },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Codex Rules', type: 'CODEX_RULES' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    expect(workspace.openTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining('# CODEX.md'),
+      })
+    );
+  });
+
+  it('strips existing MDC frontmatter before converting', async () => {
+    const mdcContent = '---\ndescription: test\nglobs:\nalwaysApply: true\n---\n\nActual content';
+    window.activeTextEditor = {
+      document: { getText: () => mdcContent },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'AGENTS.md', type: 'AGENTS_MD' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    const openDocCall = workspace.openTextDocument.mock.calls[0][0] as { content: string };
+    expect(openDocCall.content).toContain('Actual content');
+    expect(openDocCall.content).not.toContain('alwaysApply');
+  });
+
+  it('strips existing AGENTS.md header before converting', async () => {
+    const agentsContent = '# AGENTS.md\n\nMy rules here';
+    window.activeTextEditor = {
+      document: { getText: () => agentsContent },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'CLAUDE.md', type: 'CLAUDE_MD' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    const openDocCall = workspace.openTextDocument.mock.calls[0][0] as { content: string };
+    expect(openDocCall.content).toContain('# CLAUDE.md');
+    expect(openDocCall.content).toContain('My rules here');
+    // Should not have double "# AGENTS.md" header
+    expect(openDocCall.content).not.toContain('# AGENTS.md');
+  });
+
+  it('strips Copilot Instructions header before converting', async () => {
+    const copilotContent = '# Copilot Instructions\n\nInstructions here';
+    window.activeTextEditor = {
+      document: { getText: () => copilotContent },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'AGENTS.md', type: 'AGENTS_MD' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    const openDocCall = workspace.openTextDocument.mock.calls[0][0] as { content: string };
+    expect(openDocCall.content).not.toContain('# Copilot Instructions');
+    expect(openDocCall.content).toContain('Instructions here');
   });
 });
