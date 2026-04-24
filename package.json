@@ -2,7 +2,7 @@
   "name": "lynxprompt",
   "displayName": "LynxPrompt",
   "description": "Manage AI IDE configuration files (AGENTS.md, CLAUDE.md, .cursor/rules/, copilot-instructions.md, .windsurfrules) across 30+ AI coding tools with LynxPrompt.",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "publisher": "lynxprompt",
   "license": "GPL-3.0-or-later",
   "icon": "media/icon.png",
