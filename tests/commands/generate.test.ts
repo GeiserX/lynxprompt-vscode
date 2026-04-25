@@ -269,4 +269,55 @@ describe('convertFormat', () => {
     expect(openDocCall.content).not.toContain('# Copilot Instructions');
     expect(openDocCall.content).toContain('Instructions here');
   });
+
+  it('strips CLAUDE.md header before converting', async () => {
+    const claudeContent = '# CLAUDE.md\n\nClaude instructions here';
+    window.activeTextEditor = {
+      document: { getText: () => claudeContent },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'AGENTS.md', type: 'AGENTS_MD' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    const openDocCall = workspace.openTextDocument.mock.calls[0][0] as { content: string };
+    expect(openDocCall.content).not.toContain('# CLAUDE.md');
+    expect(openDocCall.content).toContain('Claude instructions here');
+  });
+
+  it('strips Codex Rules header before converting', async () => {
+    const codexContent = '# Codex Rules\n\nCodex instructions';
+    window.activeTextEditor = {
+      document: { getText: () => codexContent },
+      edit: vi.fn(),
+    } as any;
+
+    window.showQuickPick.mockResolvedValueOnce({ label: 'CLAUDE.md', type: 'CLAUDE_MD' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    const openDocCall = workspace.openTextDocument.mock.calls[0][0] as { content: string };
+    expect(openDocCall.content).toContain('# CLAUDE.md');
+    expect(openDocCall.content).toContain('Codex instructions');
+  });
+
+  it('handles unknown target type as plain text (default case)', async () => {
+    window.activeTextEditor = {
+      document: { getText: () => 'Some content' },
+      edit: vi.fn(),
+    } as any;
+
+    // Force an unknown type through the conversion
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Custom', type: 'CUSTOM' });
+    workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
+
+    await convertFormat();
+
+    const openDocCall = workspace.openTextDocument.mock.calls[0][0] as { content: string };
+    // CUSTOM type falls through to default case -- plain text, no wrapping
+    expect(openDocCall.content).toBe('Some content');
+  });
 });

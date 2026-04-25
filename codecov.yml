@@ -23,14 +23,6 @@ comment:
   require_head: true
 
 ignore:
-  - "node_modules/**"
-  - "dist/**"
-  - "build/**"
-  - ".next/**"
-  - "coverage/**"
-  - "**/*.test.*"
-  - "**/*.spec.*"
-  - "tests/**"
-  - "test/**"
-  - "**/*.config.*"
-  - "**/*.config.mjs"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/*.test.ts"
