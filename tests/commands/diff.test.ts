@@ -217,4 +217,229 @@ describe('diffBlueprint', () => {
       expect.any(String)
     );
   });
+
+  it('finds local file via fs.stat fallback when no link mapping matches', async () => {
+    await api.setToken('token');
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprints: [{ id: 'bp-2', name: 'Test2', type: 'AGENTS_MD', visibility: 'PRIVATE' }],
+          total: 1, limit: 200, offset: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprint: { id: 'bp-2', name: 'Test2', type: 'AGENTS_MD', content: '# Cloud Content' },
+        }),
+      });
+
+    window.showQuickPick.mockResolvedValueOnce({
+      label: 'Test2',
+      blueprintId: 'bp-2',
+      type: 'AGENTS_MD',
+    });
+
+    // No link mapping, but file exists on disk at the default path
+    workspace.fs.stat.mockResolvedValueOnce({ type: 1, size: 100, ctime: 0, mtime: 0 });
+
+    await diffBlueprint(api, linkMappings);
+
+    // Should have opened a diff since the file was found via stat
+    expect(commands.executeCommand).toHaveBeenCalledWith(
+      'vscode.diff',
+      expect.anything(),
+      expect.anything(),
+      expect.stringContaining('Local')
+    );
+  });
+
+  it('handles BlueprintTreeItem item directly', async () => {
+    await api.setToken('token');
+
+    const { BlueprintTreeItem } = await import('../../src/views/blueprintTree');
+    const bp = {
+      id: 'bp-direct',
+      name: 'Direct BP',
+      description: null,
+      type: 'AGENTS_MD' as const,
+      tier: 'SHORT' as const,
+      visibility: 'PRIVATE' as const,
+      tags: [],
+      downloads: 0,
+      favorites: 0,
+      content_checksum: 'abc',
+      created_at: '',
+      updated_at: '',
+    };
+    const treeItem = new BlueprintTreeItem(bp);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        blueprint: { id: 'bp-direct', name: 'Direct BP', type: 'AGENTS_MD', content: '# Direct' },
+      }),
+    });
+
+    // No local file found
+    workspace.fs.stat.mockRejectedValue(new Error('not found'));
+
+    await diffBlueprint(api, linkMappings, treeItem as any);
+
+    // Should show cloud version since no local file
+    expect(window.showInformationMessage).toHaveBeenCalledWith(
+      expect.stringContaining('No local file found')
+    );
+  });
+
+  it('handles LocalFileTreeItem item directly', async () => {
+    await api.setToken('token');
+
+    const { LocalFileTreeItem } = await import('../../src/views/localFilesTree');
+    const configFile = {
+      absolutePath: '/workspace/CLAUDE.md',
+      relativePath: 'CLAUDE.md',
+      type: 'CLAUDE_MD' as const,
+      linkedBlueprintId: 'bp-linked',
+      status: 'synced' as const,
+    };
+    const localItem = new LocalFileTreeItem(configFile);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        blueprint: { id: 'bp-linked', name: 'Linked BP', type: 'CLAUDE_MD', content: '# Linked Cloud' },
+      }),
+    });
+
+    await diffBlueprint(api, linkMappings, localItem as any);
+
+    expect(commands.executeCommand).toHaveBeenCalledWith(
+      'vscode.diff',
+      expect.anything(),
+      expect.anything(),
+      expect.stringContaining('Local')
+    );
+  });
+
+  it('handles LocalFileTreeItem without linkedBlueprintId (picks from list)', async () => {
+    await api.setToken('token');
+
+    const { LocalFileTreeItem } = await import('../../src/views/localFilesTree');
+    const configFile = {
+      absolutePath: '/workspace/CLAUDE.md',
+      relativePath: 'CLAUDE.md',
+      type: 'CLAUDE_MD' as const,
+      status: 'untracked' as const,
+    };
+    const localItem = new LocalFileTreeItem(configFile);
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprints: [{ id: 'bp-pick', name: 'Pick Me', type: 'CLAUDE_MD', visibility: 'PRIVATE' }],
+          total: 1, limit: 200, offset: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprint: { id: 'bp-pick', name: 'Pick Me', type: 'CLAUDE_MD', content: '# Picked' },
+        }),
+      });
+
+    window.showQuickPick.mockResolvedValueOnce({
+      label: 'Pick Me',
+      blueprintId: 'bp-pick',
+      type: 'CLAUDE_MD',
+    });
+
+    await diffBlueprint(api, linkMappings, localItem as any);
+
+    expect(commands.executeCommand).toHaveBeenCalledWith(
+      'vscode.diff',
+      expect.anything(),
+      expect.anything(),
+      expect.stringContaining('Local')
+    );
+  });
+
+  it('handles no workspace folders when searching for local file', async () => {
+    await api.setToken('token');
+    workspace.workspaceFolders = [];
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprints: [{ id: 'bp-1', name: 'Test', type: 'AGENTS_MD', visibility: 'PRIVATE' }],
+          total: 1, limit: 200, offset: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprint: { id: 'bp-1', name: 'Test', type: 'AGENTS_MD', content: '# Cloud' },
+        }),
+      });
+
+    window.showQuickPick.mockResolvedValueOnce({
+      label: 'Test',
+      blueprintId: 'bp-1',
+      type: 'AGENTS_MD',
+    });
+
+    await diffBlueprint(api, linkMappings);
+
+    expect(window.showErrorMessage).toHaveBeenCalledWith('No workspace folder open.');
+  });
+
+  it('uses vscode.Uri item without link mapping (picks blueprint)', async () => {
+    await api.setToken('token');
+
+    const fileUri = Uri.file('/workspace/AGENTS.md');
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprints: [{ id: 'bp-uri', name: 'URI BP', type: 'AGENTS_MD', visibility: 'PRIVATE' }],
+          total: 1, limit: 200, offset: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprint: { id: 'bp-uri', name: 'URI BP', type: 'AGENTS_MD', content: '# URI' },
+        }),
+      });
+
+    window.showQuickPick.mockResolvedValueOnce({
+      label: 'URI BP',
+      blueprintId: 'bp-uri',
+      type: 'AGENTS_MD',
+    });
+
+    await diffBlueprint(api, linkMappings, fileUri as any);
+
+    expect(commands.executeCommand).toHaveBeenCalledWith(
+      'vscode.diff',
+      expect.anything(),
+      expect.anything(),
+      expect.stringContaining('Local')
+    );
+  });
 });

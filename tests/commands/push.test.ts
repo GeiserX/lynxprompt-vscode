@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { window, workspace, commands, Uri, createMockSecretStorage, resetAllMocks } from '../__mocks__/vscode';
 import { LynxPromptApi } from '../../src/api';
 import { pushConfig } from '../../src/commands/push';
-import type { LinkMapping } from '../../src/types';
+import { LocalFileTreeItem } from '../../src/views/localFilesTree';
+import type { LinkMapping, LocalConfigFile } from '../../src/types';
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -297,5 +298,125 @@ describe('pushConfig', () => {
 
     expect(commands.executeCommand).toHaveBeenCalledWith('lynxprompt.refreshBlueprints');
     expect(commands.executeCommand).toHaveBeenCalledWith('lynxprompt.refreshLocalFiles');
+  });
+
+  it('handles LocalFileTreeItem item directly', async () => {
+    await api.setToken('token');
+
+    const configFile: LocalConfigFile = {
+      absolutePath: '/workspace/AGENTS.md',
+      relativePath: 'AGENTS.md',
+      type: 'AGENTS_MD',
+      status: 'untracked',
+    };
+    const treeItem = new LocalFileTreeItem(configFile);
+
+    workspace.fs.readFile.mockResolvedValueOnce(Buffer.from('# From Tree Item'));
+
+    // Create new blueprint flow
+    window.showInputBox
+      .mockResolvedValueOnce('Tree BP')
+      .mockResolvedValueOnce('Description');
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Private', value: 'PRIVATE' });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ blueprint: { id: 'bp-tree', name: 'Tree BP' } }),
+    });
+
+    await pushConfig(api, linkMappings, treeItem as any);
+
+    expect(workspace.fs.readFile).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalled();
+    expect(linkMappings.get('/workspace/AGENTS.md')?.blueprintId).toBe('bp-tree');
+  });
+
+  it('handles vscode.Uri item directly', async () => {
+    await api.setToken('token');
+
+    const fileUri = Uri.file('/workspace/CLAUDE.md');
+    workspace.fs.readFile.mockResolvedValueOnce(Buffer.from('# URI Content'));
+
+    window.showInputBox
+      .mockResolvedValueOnce('URI BP')
+      .mockResolvedValueOnce('');
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Public', value: 'PUBLIC' });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ blueprint: { id: 'bp-uri', name: 'URI BP' } }),
+    });
+
+    await pushConfig(api, linkMappings, fileUri as any);
+
+    expect(workspace.fs.readFile).toHaveBeenCalled();
+    expect(linkMappings.get('/workspace/CLAUDE.md')?.blueprintId).toBe('bp-uri');
+  });
+
+  it('selects type via QuickPick for unrecognized file and creates blueprint', async () => {
+    await api.setToken('token');
+
+    const fileUri = Uri.file('/workspace/custom-file.txt');
+    window.showOpenDialog.mockResolvedValueOnce([fileUri]);
+    workspace.fs.readFile.mockResolvedValueOnce(Buffer.from('# Custom Content'));
+
+    // First QuickPick: type selection
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Custom', type: 'CUSTOM' });
+
+    // Create new blueprint flow
+    window.showInputBox
+      .mockResolvedValueOnce('Custom BP')
+      .mockResolvedValueOnce('Custom desc');
+    // Second QuickPick: visibility
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Team', value: 'TEAM' });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ blueprint: { id: 'bp-custom', name: 'Custom BP' } }),
+    });
+
+    await pushConfig(api, linkMappings);
+
+    expect(mockFetch).toHaveBeenCalled();
+    expect(window.showInformationMessage).toHaveBeenCalledWith(
+      expect.stringContaining('Custom BP')
+    );
+  });
+
+  it('returns early when empty file dialog result array', async () => {
+    await api.setToken('token');
+    window.showOpenDialog.mockResolvedValueOnce([]);
+
+    await pushConfig(api, linkMappings);
+
+    expect(workspace.fs.readFile).not.toHaveBeenCalled();
+  });
+
+  it('validates blueprint name is not empty', async () => {
+    await api.setToken('token');
+
+    const fileUri = Uri.file('/workspace/AGENTS.md');
+    window.showOpenDialog.mockResolvedValueOnce([fileUri]);
+    workspace.fs.readFile.mockResolvedValueOnce(Buffer.from('# Content'));
+
+    // Capture the validateInput callback
+    let validateInput: ((val: string) => string | null) | undefined;
+    window.showInputBox.mockImplementation(async (opts: any) => {
+      if (opts?.validateInput) {
+        validateInput = opts.validateInput;
+      }
+      return undefined; // cancel
+    });
+
+    await pushConfig(api, linkMappings);
+
+    // validateInput should have been captured from the name input
+    expect(validateInput).toBeDefined();
+    expect(validateInput!('')).toBe('Name is required');
+    expect(validateInput!('   ')).toBe('Name is required');
+    expect(validateInput!('Valid Name')).toBeNull();
   });
 });
