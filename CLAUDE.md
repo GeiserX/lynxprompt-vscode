@@ -1,10 +1,10 @@
-# AGENTS.md — lynxprompt-vscode
+# CLAUDE.md — lynxprompt-vscode
 
 > VS Code extension for [LynxPrompt](https://lynxprompt.com) — browse, pull, push, and manage AI configuration files directly from the editor.
 
 ## Project Overview
 
-This is the official VS Code extension for LynxPrompt, the open-source platform for managing AI IDE configuration files (AGENTS.md, CLAUDE.md, .cursorrules, copilot-instructions.md, .windsurfrules, etc.) across 40+ AI coding tools.
+This is the official VS Code extension for LynxPrompt, the open-source platform for managing AI IDE configuration files (CLAUDE.md, CLAUDE.md, .cursorrules, copilot-instructions.md, .windsurfrules, etc.) across 40+ AI coding tools.
 
 The extension provides a sidebar panel with two tree views:
 - **My Blueprints** — lists the user's cloud blueprints from LynxPrompt
@@ -35,7 +35,7 @@ src/
 │   └── generate.ts        # Invoke LynxPrompt wizard to create new config
 ├── utils/
 │   ├── configDetector.ts  # Glob-based detection of AI config files in workspace
-│   └── fileMapping.ts     # Maps blueprint types ↔ file paths (AGENTS_MD → AGENTS.md)
+│   └── fileMapping.ts     # Maps blueprint types ↔ file paths (AGENTS_MD → CLAUDE.md)
 └── views/
     ├── blueprintTree.ts   # TreeDataProvider for "My Blueprints" sidebar
     └── localFilesTree.ts  # TreeDataProvider for "Local Config Files" sidebar
