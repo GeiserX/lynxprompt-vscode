@@ -246,11 +246,11 @@
     "publish": "vsce publish"
   },
   "devDependencies": {
-    "@types/node": "^20.19.39",
+    "@types/node": "^20.19.41",
     "@types/vscode": "1.118.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.6",
     "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.28.0",
     "eslint": "^8.56.0",
