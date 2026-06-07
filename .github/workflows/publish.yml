@@ -9,6 +9,13 @@ on:
 permissions:
   contents: write
 
+# Serialize publish runs. When several PRs merge in quick succession they each
+# trigger this workflow; without serialization they race, all compute the same
+# next version, and every run after the first fails with "vX.Y.Z already exists".
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
@@ -67,12 +74,32 @@ jobs:
       - name: Package VSIX
         run: npx @vscode/vsce package --no-git-tag-version -o "lynxprompt-${{ steps.version.outputs.version }}.vsix"
 
+      # Idempotency guard: if this version is already on the Marketplace (e.g. a
+      # re-run, a manual dispatch, or a race that slipped past concurrency), skip
+      # the publish instead of failing the whole job on "already exists".
+      - name: Check if version already published
+        id: published
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          LATEST=$(npx -y @vscode/vsce show LynxPrompt.lynxprompt --json 2>/dev/null \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).versions?.[0]?.version||'')}catch{console.log('')}})" || echo "")
+          echo "Marketplace latest: '${LATEST}', publishing: '${VERSION}'"
+          if npx -y @vscode/vsce show LynxPrompt.lynxprompt --json 2>/dev/null \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const vs=(JSON.parse(s).versions||[]).map(v=>v.version);process.exit(vs.includes(process.argv[1])?0:1)}catch{process.exit(1)}})" "$VERSION"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Version $VERSION already on Marketplace — skipping publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to VS Code Marketplace
+        if: steps.published.outputs.exists != 'true'
         run: npx @vscode/vsce publish --no-git-tag-version -p "$VSCE_PAT"
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish to Open VSX Registry
+        if: steps.published.outputs.exists != 'true'
         continue-on-error: true
         run: npx ovsx publish "lynxprompt-${{ steps.version.outputs.version }}.vsix" -p "$OVSX_PAT"
         env:
