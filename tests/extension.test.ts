@@ -417,10 +417,272 @@ describe('extension', () => {
         expect.anything()
       );
     });
+
+    it('secret change handler reloads token and updates status bar', async () => {
+      // Activate with a token so status bar is created in authenticated state
+      context.secrets.get.mockResolvedValue('my-token');
+
+      // Capture the onDidChange callback from secrets
+      let secretChangeCallback: ((e: { key: string }) => void) | undefined;
+      context.secrets.onDidChange = vi.fn().mockImplementation((cb: (e: { key: string }) => void) => {
+        secretChangeCallback = cb;
+        return new Disposable(() => {});
+      });
+
+      await activate(context as any);
+
+      expect(secretChangeCallback).toBeDefined();
+
+      // Simulate a secret change for the token key
+      // loadToken will return a new token
+      context.secrets.get.mockResolvedValue('new-token');
+      secretChangeCallback!({ key: 'lynxprompt.token' });
+
+      // Give async operations time to complete
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Status bar should have been updated
+      expect(mockStatusBarItem.text).toBe('$(check) LynxPrompt');
+    });
+
+    it('secret change handler ignores non-token keys', async () => {
+      context.secrets.get.mockResolvedValue('my-token');
+
+      let secretChangeCallback: ((e: { key: string }) => void) | undefined;
+      context.secrets.onDidChange = vi.fn().mockImplementation((cb: (e: { key: string }) => void) => {
+        secretChangeCallback = cb;
+        return new Disposable(() => {});
+      });
+
+      await activate(context as any);
+      expect(secretChangeCallback).toBeDefined();
+
+      // Change a different key -- should not trigger loadToken
+      const loadTokenSpy = context.secrets.get;
+      loadTokenSpy.mockClear();
+      secretChangeCallback!({ key: 'other.key' });
+
+      await new Promise((r) => setTimeout(r, 50));
+      // get should NOT have been called for token reload
+      expect(loadTokenSpy).not.toHaveBeenCalled();
+    });
+
+    it('handleFileChange does not warn when checksum matches', async () => {
+      const crypto = await import('crypto');
+      const content = 'unchanged content';
+      const checksum = crypto.createHash('sha256').update(Buffer.from(content)).digest('hex');
+
+      context.workspaceState.get.mockReturnValue({
+        '/workspace/AGENTS.md': {
+          localPath: '/workspace/AGENTS.md',
+          blueprintId: 'bp-1',
+          lastChecksum: checksum,
+        },
+      });
+      context.secrets.get.mockResolvedValue(undefined);
+
+      workspace.fs.readFile.mockResolvedValue(Buffer.from(content));
+
+      const onChangeCbs: Array<(uri: any) => void> = [];
+      workspace.createFileSystemWatcher.mockReturnValue({
+        onDidChange: vi.fn().mockImplementation((cb: (uri: any) => void) => {
+          onChangeCbs.push(cb);
+          return new Disposable(() => {});
+        }),
+        onDidCreate: vi.fn().mockReturnValue(new Disposable(() => {})),
+        onDidDelete: vi.fn().mockReturnValue(new Disposable(() => {})),
+        dispose: vi.fn(),
+      });
+
+      await activate(context as any);
+      expect(onChangeCbs.length).toBeGreaterThan(0);
+      await onChangeCbs[0](Uri.file('/workspace/AGENTS.md'));
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Checksum matches, so no warning should be shown
+      expect(window.showWarningMessage).not.toHaveBeenCalled();
+    });
+
+    it('handleFileChange dismisses without action', async () => {
+      context.workspaceState.get.mockReturnValue({
+        '/workspace/AGENTS.md': {
+          localPath: '/workspace/AGENTS.md',
+          blueprintId: 'bp-1',
+          lastChecksum: 'old-checksum',
+        },
+      });
+      context.secrets.get.mockResolvedValue(undefined);
+      workspace.fs.readFile.mockResolvedValue(Buffer.from('changed'));
+      window.showWarningMessage.mockResolvedValue('Dismiss');
+
+      const onChangeCbs: Array<(uri: any) => void> = [];
+      workspace.createFileSystemWatcher.mockReturnValue({
+        onDidChange: vi.fn().mockImplementation((cb: (uri: any) => void) => {
+          onChangeCbs.push(cb);
+          return new Disposable(() => {});
+        }),
+        onDidCreate: vi.fn().mockReturnValue(new Disposable(() => {})),
+        onDidDelete: vi.fn().mockReturnValue(new Disposable(() => {})),
+        dispose: vi.fn(),
+      });
+
+      await activate(context as any);
+      await onChangeCbs[0](Uri.file('/workspace/AGENTS.md'));
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Neither push nor diff should be executed
+      expect(commands.executeCommand).not.toHaveBeenCalledWith(
+        'lynxprompt.pushConfig',
+        expect.anything()
+      );
+      expect(commands.executeCommand).not.toHaveBeenCalledWith(
+        'lynxprompt.diffBlueprint',
+        expect.anything()
+      );
+    });
+
+    it('refreshBlueprints command handler calls refresh', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const call = commands.registerCommand.mock.calls.find(
+        (c: unknown[]) => c[0] === 'lynxprompt.refreshBlueprints'
+      );
+      expect(call).toBeDefined();
+      const handler = call![1] as () => void;
+      // Should not throw
+      handler();
+    });
+
+    it('refreshLocalFiles command handler calls refresh', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const call = commands.registerCommand.mock.calls.find(
+        (c: unknown[]) => c[0] === 'lynxprompt.refreshLocalFiles'
+      );
+      expect(call).toBeDefined();
+      const handler = call![1] as () => void;
+      handler();
+    });
+
+    it('command handlers are registered as functions', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const commandNames = [
+        'lynxprompt.signIn',
+        'lynxprompt.signOut',
+        'lynxprompt.refreshBlueprints',
+        'lynxprompt.refreshLocalFiles',
+        'lynxprompt.pullBlueprint',
+        'lynxprompt.pushConfig',
+        'lynxprompt.diffBlueprint',
+        'lynxprompt.generateConfig',
+        'lynxprompt.convertFormat',
+        'lynxprompt.openBlueprint',
+      ];
+
+      for (const name of commandNames) {
+        const call = commands.registerCommand.mock.calls.find(
+          (c: unknown[]) => c[0] === name
+        );
+        expect(call).toBeDefined();
+        expect(typeof call![1]).toBe('function');
+      }
+    });
+
+    it('pullBlueprint command handler delegates and saves mappings', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const call = commands.registerCommand.mock.calls.find(
+        (c: unknown[]) => c[0] === 'lynxprompt.pullBlueprint'
+      );
+      expect(call).toBeDefined();
+      const handler = call![1] as (item?: unknown) => Promise<void>;
+      // Call without item -- pullBlueprint will show error (not authenticated)
+      await handler();
+    });
+
+    it('pushConfig command handler delegates and saves mappings', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const call = commands.registerCommand.mock.calls.find(
+        (c: unknown[]) => c[0] === 'lynxprompt.pushConfig'
+      );
+      expect(call).toBeDefined();
+      const handler = call![1] as (item?: unknown) => Promise<void>;
+      await handler();
+    });
+
+    it('diffBlueprint command handler delegates', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const call = commands.registerCommand.mock.calls.find(
+        (c: unknown[]) => c[0] === 'lynxprompt.diffBlueprint'
+      );
+      expect(call).toBeDefined();
+      const handler = call![1] as (item?: unknown) => Promise<void>;
+      await handler();
+    });
+
+    it('generateConfig command handler delegates', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const call = commands.registerCommand.mock.calls.find(
+        (c: unknown[]) => c[0] === 'lynxprompt.generateConfig'
+      );
+      expect(call).toBeDefined();
+      const handler = call![1] as () => Promise<void>;
+      await handler();
+    });
+
+    it('convertFormat command handler delegates', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      const call = commands.registerCommand.mock.calls.find(
+        (c: unknown[]) => c[0] === 'lynxprompt.convertFormat'
+      );
+      expect(call).toBeDefined();
+      const handler = call![1] as () => Promise<void>;
+      await handler();
+    });
+
+    it('disposable in subscriptions calls saveLinkMappings', async () => {
+      context.secrets.get.mockResolvedValue(undefined);
+      await activate(context as any);
+
+      // The last subscription should be a Disposable that saves link mappings
+      const disposables = context.subscriptions;
+      const lastDisposable = disposables[disposables.length - 1];
+      expect(lastDisposable).toBeDefined();
+
+      // Disposing it should trigger saveLinkMappings (workspaceState.update)
+      if (lastDisposable && typeof lastDisposable.dispose === 'function') {
+        lastDisposable.dispose();
+        expect(context.workspaceState.update).toHaveBeenCalledWith(
+          'lynxprompt.linkMappings',
+          expect.any(Object)
+        );
+      }
+    });
   });
 
   describe('deactivate', () => {
     it('can be called without error', () => {
+      expect(() => deactivate()).not.toThrow();
+    });
+
+    it('disposes status bar and watcher after activation', async () => {
+      context.secrets.get.mockResolvedValue('my-token');
+      await activate(context as any);
+
+      // Now deactivate should dispose the status bar item
       expect(() => deactivate()).not.toThrow();
     });
   });

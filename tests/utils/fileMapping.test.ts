@@ -107,6 +107,14 @@ describe('blueprintTypeToPath', () => {
   it('maps CUSTOM without name', () => {
     expect(blueprintTypeToPath('CUSTOM')).toBe('ai-config.md');
   });
+
+  it('maps unknown type without name to default ai-config.md', () => {
+    expect(blueprintTypeToPath('UNKNOWN_TYPE' as any)).toBe('ai-config.md');
+  });
+
+  it('maps unknown type with name to sanitized name', () => {
+    expect(blueprintTypeToPath('UNKNOWN_TYPE' as any, 'my config')).toBe('my_config');
+  });
 });
 
 describe('blueprintTypeLabel', () => {
