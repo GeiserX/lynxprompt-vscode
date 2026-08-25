@@ -31,6 +31,10 @@ updates:
       # publish.yml, never in PR CI. Raising it raises the minimum VS Code we support,
       # so it moves by hand together with engines.vscode.
       - dependency-name: '@types/vscode'
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
   - package-ecosystem: github-actions
     directory: /
     schedule:
