@@ -26,6 +26,11 @@ updates:
       - dependency-name: '*'
         update-types:
           - version-update:semver-major
+      # @types/vscode must never exceed engines.vscode: vsce refuses to package with
+      # "@types/vscode X greater than engines.vscode Y", and that only surfaces in
+      # publish.yml, never in PR CI. Raising it raises the minimum VS Code we support,
+      # so it moves by hand together with engines.vscode.
+      - dependency-name: '@types/vscode'
   - package-ecosystem: github-actions
     directory: /
     schedule:
