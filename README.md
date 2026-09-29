@@ -1,9 +1,5 @@
 <p align="center">
-  <img src="media/banner.png" alt="lynxprompt-vscode banner" width="900"/>
-</p>
-
-<p align="center">
-  <img src="media/banner.png" alt="LynxPrompt for VS Code banner" width="900"/>
+  <img src="https://raw.githubusercontent.com/GeiserX/lynxprompt-vscode/main/docs/images/banner.png" alt="LynxPrompt for VS Code banner" width="900"/>
 </p>
 
 <p align="center">

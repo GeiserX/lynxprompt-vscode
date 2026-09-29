@@ -39,7 +39,8 @@ Press F5 in VS Code to launch the Extension Development Host.
 - `src/views/blueprintTree.ts` — TreeDataProvider for "My Blueprints" sidebar
 - `src/views/localFilesTree.ts` — TreeDataProvider for "Local Config Files" sidebar
 - `tests/` — test suite
-- `media/` — icons and banner assets
+- `media/` — icons
+- `docs/images/` — `banner.svg`, its PNG render `banner.png` and `social-preview.png`; the README shows the PNG because vsce rejects SVG images in a Marketplace README
 - `esbuild.js` — build configuration
 - `CHANGELOG.md` — version history
 
