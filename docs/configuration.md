@@ -21,6 +21,6 @@ If you run your own LynxPrompt instance, change the API URL in settings:
 
 ## Requirements
 
-- VS Code `1.85.0` or later
+- VS Code `1.125.0` or later
 - A LynxPrompt account at [lynxprompt.com](https://lynxprompt.com)
 
