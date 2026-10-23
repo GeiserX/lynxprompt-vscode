@@ -5,6 +5,11 @@ on:
     branches: [main]
 
   workflow_dispatch:
+    inputs:
+      openvsx_version:
+        description: 'Publish this existing release (e.g. 0.1.71) to Open VSX only. Leave empty for a normal bump and publish.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -18,7 +23,7 @@ concurrency:
 
 jobs:
   publish:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !inputs.openvsx_version"
     runs-on: ubuntu-latest
 
     steps:
@@ -98,13 +103,6 @@ jobs:
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
-      - name: Publish to Open VSX Registry
-        if: steps.published.outputs.exists != 'true'
-        continue-on-error: true
-        run: npx ovsx publish "lynxprompt-${{ steps.version.outputs.version }}.vsix" -p "$OVSX_PAT"
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-
       - name: Tag and push
         run: |
           git tag "v${{ steps.version.outputs.version }}" 2>/dev/null || true
@@ -124,3 +122,44 @@ jobs:
             **Full changelog:** [`v${{ steps.version.outputs.current }}...v${{ steps.version.outputs.version }}`](https://github.com/GeiserX/lynxprompt-vscode/compare/v${{ steps.version.outputs.current }}...v${{ steps.version.outputs.version }})
           files: lynxprompt-${{ steps.version.outputs.version }}.vsix
           generate_release_notes: true
+
+      # Last, so a failed Open VSX publish turns the run red without skipping
+      # the tag and the GitHub Release above. Not gated on the Marketplace
+      # check: a re-run must still reach Open VSX, and the script skips a
+      # version Open VSX already has.
+      - name: Publish to Open VSX Registry
+        run: scripts/publish-openvsx.sh "lynxprompt-${{ steps.version.outputs.version }}.vsix"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+  # Manual: push an already released version to Open VSX, using the exact VSIX
+  # attached to its GitHub Release.
+  openvsx:
+    if: github.event_name == 'workflow_dispatch' && inputs.openvsx_version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Download VSIX from the GitHub Release
+        run: |
+          VERSION="${VERSION#v}"
+          gh release download "v${VERSION}" --pattern "lynxprompt-${VERSION}.vsix"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.openvsx_version }}
+
+      - name: Publish to Open VSX Registry
+        run: scripts/publish-openvsx.sh "lynxprompt-${VERSION#v}.vsix"
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          VERSION: ${{ inputs.openvsx_version }}
