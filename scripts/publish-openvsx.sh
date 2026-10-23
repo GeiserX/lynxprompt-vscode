@@ -19,7 +19,10 @@ fi
 NAMESPACE=$(node -p "require('./package.json').publisher")
 
 # Create the namespace only when Open VSX does not know it yet.
-STATUS=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' "https://open-vsx.org/api/${NAMESPACE}")
+STATUS=$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' "https://open-vsx.org/api/${NAMESPACE}") || {
+  echo "::error::Could not reach open-vsx.org to check the namespace '${NAMESPACE}'."
+  exit 1
+}
 if [ "$STATUS" = "404" ]; then
   echo "Namespace '${NAMESPACE}' not found on Open VSX, creating it."
   if ! OUT=$($OVSX create-namespace "$NAMESPACE" -p "$OVSX_PAT" 2>&1); then
@@ -35,4 +38,5 @@ else
   echo "Namespace '${NAMESPACE}' exists on Open VSX (HTTP ${STATUS})."
 fi
 
-$OVSX publish "$VSIX" -p "$OVSX_PAT"
+# --skip-duplicate: a re-run of a version already on Open VSX succeeds quietly.
+$OVSX publish "$VSIX" -p "$OVSX_PAT" --skip-duplicate

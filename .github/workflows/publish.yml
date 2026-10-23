@@ -124,9 +124,10 @@ jobs:
           generate_release_notes: true
 
       # Last, so a failed Open VSX publish turns the run red without skipping
-      # the tag and the GitHub Release above.
+      # the tag and the GitHub Release above. Not gated on the Marketplace
+      # check: a re-run must still reach Open VSX, and the script skips a
+      # version Open VSX already has.
       - name: Publish to Open VSX Registry
-        if: steps.published.outputs.exists != 'true'
         run: scripts/publish-openvsx.sh "lynxprompt-${{ steps.version.outputs.version }}.vsix"
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
@@ -150,13 +151,15 @@ jobs:
           node-version: '22'
 
       - name: Download VSIX from the GitHub Release
-        run: gh release download "v${VERSION}" --pattern "lynxprompt-${VERSION}.vsix"
+        run: |
+          VERSION="${VERSION#v}"
+          gh release download "v${VERSION}" --pattern "lynxprompt-${VERSION}.vsix"
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.openvsx_version }}
 
       - name: Publish to Open VSX Registry
-        run: scripts/publish-openvsx.sh "lynxprompt-${VERSION}.vsix"
+        run: scripts/publish-openvsx.sh "lynxprompt-${VERSION#v}.vsix"
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
           VERSION: ${{ inputs.openvsx_version }}
