@@ -9,3 +9,4 @@ esbuild.js
 **/*.ts
 !dist/**
 .eslintrc*
+scripts/**
