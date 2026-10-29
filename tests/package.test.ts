@@ -9,7 +9,8 @@ const ALLOWED = /^(dist\/extension\.js|media\/.+|package\.json|README\.md|CHANGE
 describe('published package', () => {
   it('contains only the allowlisted files', () => {
     const root = path.resolve(__dirname, '..');
-    const out = execFileSync(path.join(root, 'node_modules', '.bin', 'vsce'), ['ls'], {
+    const vsce = path.join(root, 'node_modules', '@vscode', 'vsce', 'vsce');
+    const out = execFileSync(process.execPath, [vsce, 'ls'], {
       cwd: root,
       encoding: 'utf-8',
     });

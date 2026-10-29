@@ -10,12 +10,16 @@ import { blueprintTypeToPath, resolveInside } from "../utils/fileMapping";
 export const CLOUD_SCHEME = "lynxprompt-cloud";
 
 const cloudContent = new Map<string, string>();
-const cloudContentChanged = new vscode.EventEmitter<vscode.Uri>();
+let comparisons = 0;
 
 export const cloudContentProvider: vscode.TextDocumentContentProvider = {
-  onDidChange: cloudContentChanged.event,
   provideTextDocumentContent: (uri) => cloudContent.get(uri.toString()) ?? "",
 };
+
+/** Drop the content of a closed cloud document. */
+export function forgetCloudContent(uri: vscode.Uri): void {
+  cloudContent.delete(uri.toString());
+}
 
 export async function diffBlueprint(
   api: LynxPromptApi,
@@ -115,14 +119,14 @@ export async function diffBlueprint(
   }
 
   // The cloud side is a read-only virtual document: nothing is written into
-  // the workspace, where a PRIVATE blueprint's content could get committed
+  // the workspace, where a PRIVATE blueprint's content could get committed.
+  // One URI per comparison, so an open diff keeps the snapshot it was opened with
   const ext = localFilePath ? path.extname(localFilePath) : ".md";
   const cloudUri = vscode.Uri.from({
     scheme: CLOUD_SCHEME,
-    path: `/${blueprint.id}-cloud${ext}`,
+    path: `/${++comparisons}/${blueprint.id}-cloud${ext}`,
   });
   cloudContent.set(cloudUri.toString(), blueprint.content);
-  cloudContentChanged.fire(cloudUri);
 
   if (localFilePath) {
     const localUri = vscode.Uri.file(localFilePath);

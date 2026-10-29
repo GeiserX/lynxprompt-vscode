@@ -193,7 +193,15 @@ export async function pushConfig(
       title: "Creating blueprint...",
     },
     async () => {
-      const hierarchyId = await repositoryHierarchyId(api, fileUri);
+      // Best effort: a server or token without hierarchies still gets the blueprint
+      let hierarchyId: string | undefined;
+      try {
+        hierarchyId = await repositoryHierarchyId(api, fileUri);
+      } catch (error) {
+        vscode.window.showWarningMessage(
+          `Blueprint not linked to this repository's hierarchy: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
       const created = await api.createBlueprint({
         name: name.trim(),
         description: description?.trim() || undefined,

@@ -245,6 +245,7 @@ export const workspace = {
   })),
   findFiles: vi.fn().mockResolvedValue([]),
   registerTextDocumentContentProvider: vi.fn().mockReturnValue(new Disposable(() => {})),
+  onDidCloseTextDocument: vi.fn().mockReturnValue(new Disposable(() => {})),
   openTextDocument: vi.fn().mockResolvedValue({
     getText: vi.fn().mockReturnValue(''),
     uri: Uri.file('/workspace/test.md'),

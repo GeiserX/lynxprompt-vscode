@@ -235,6 +235,18 @@ describe('pushConfig', () => {
       expect(createBody().hierarchy_id).toBe('ha_old');
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
+
+    it('still creates the blueprint, with a warning, when the hierarchy call fails', async () => {
+      mockFetch
+        .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ error: 'Not found' }) })
+        .mockResolvedValueOnce(created);
+
+      await pushNested();
+
+      expect(createBody().hierarchy_id).toBeUndefined();
+      expect(window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining('hierarchy'));
+      expect(linkMappings.get('/workspace/packages/api/AGENTS.md')?.blueprintId).toBe('new-1');
+    });
   });
 
   it('pushes CODEX.md under the server type CODEX_MD, not CUSTOM', async () => {

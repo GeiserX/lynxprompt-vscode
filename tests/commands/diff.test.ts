@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { window, workspace, commands, Uri, createMockSecretStorage } from '../__mocks__/vscode';
 import { LynxPromptApi } from '../../src/api';
-import { cloudContentProvider, diffBlueprint } from '../../src/commands/diff';
+import { cloudContentProvider, diffBlueprint, forgetCloudContent } from '../../src/commands/diff';
 import type { LinkMapping } from '../../src/types';
 
 // Mock fetch
@@ -125,6 +125,29 @@ describe('diffBlueprint', () => {
     const cloudUri = commands.executeCommand.mock.calls.find((c) => c[0] === 'vscode.diff')![2];
     expect(cloudUri.scheme).toBe('lynxprompt-cloud');
     expect(cloudContentProvider.provideTextDocumentContent(cloudUri, {} as any)).toBe('# Secret rules');
+
+    forgetCloudContent(cloudUri);
+    expect(cloudContentProvider.provideTextDocumentContent(cloudUri, {} as any)).toBe('');
+  });
+
+  it('gives each comparison its own cloud URI, so an open diff keeps its snapshot', async () => {
+    await api.setToken('token');
+    const filePath = '/workspace/AGENTS.md';
+    linkMappings.set(filePath, { localPath: filePath, blueprintId: 'bp-9', lastChecksum: 'abc' });
+    for (const content of ['# First', '# Second']) {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprint: { id: 'bp-9', name: 'P', type: 'AGENTS_MD', content } }),
+      });
+      await diffBlueprint(api, linkMappings, Uri.file(filePath) as any);
+    }
+    const [first, second] = commands.executeCommand.mock.calls
+      .filter((c) => c[0] === 'vscode.diff')
+      .map((c) => c[2]);
+    expect(first.toString()).not.toBe(second.toString());
+    expect(cloudContentProvider.provideTextDocumentContent(first, {} as any)).toBe('# First');
+    expect(cloudContentProvider.provideTextDocumentContent(second, {} as any)).toBe('# Second');
   });
 
   it('shows cloud version when no local file found', async () => {
