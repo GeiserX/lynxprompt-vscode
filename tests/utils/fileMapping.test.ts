@@ -34,16 +34,16 @@ describe('pathToBlueprintType', () => {
     expect(pathToBlueprintType('/workspace/.clinerules')).toBe('CLINE_RULES');
   });
 
-  it('detects .aider.conf.yml', () => {
-    expect(pathToBlueprintType('/workspace/.aider.conf.yml')).toBe('AIDER_RULES');
+  it('never picks up .aider.conf.yml, which can hold API keys', () => {
+    expect(pathToBlueprintType('/workspace/.aider.conf.yml')).toBeUndefined();
   });
 
-  it('detects .continue/config.json', () => {
-    expect(pathToBlueprintType('/workspace/.continue/config.json')).toBe('CONTINUE_RULES');
+  it('never picks up .continue/config.json, which can hold API keys', () => {
+    expect(pathToBlueprintType('/workspace/.continue/config.json')).toBeUndefined();
   });
 
-  it('detects CODEX.md', () => {
-    expect(pathToBlueprintType('/workspace/CODEX.md')).toBe('CODEX_RULES');
+  it('detects CODEX.md as the server type CODEX_MD', () => {
+    expect(pathToBlueprintType('/workspace/CODEX.md')).toBe('CODEX_MD');
   });
 
   it('returns undefined for unknown files', () => {
@@ -60,60 +60,44 @@ describe('pathToBlueprintType', () => {
 });
 
 describe('blueprintTypeToPath', () => {
-  it('maps AGENTS_MD to AGENTS.md', () => {
-    expect(blueprintTypeToPath('AGENTS_MD')).toBe('AGENTS.md');
+  // The file LynxPrompt's shared platform table gives each type, as `lynxp pull` writes it
+  it.each([
+    ['AGENTS_MD', 'AGENTS.md'],
+    ['CLAUDE_MD', 'CLAUDE.md'],
+    ['CODEX_MD', 'AGENTS.md'],
+    ['GEMINI_MD', 'GEMINI.md'],
+    ['AIDER_MD', 'AGENTS.md'],
+    ['CURSOR_RULES', '.cursor/rules/project.mdc'],
+    ['CURSOR_MDC', '.cursor/rules/project.mdc'],
+    ['COPILOT_INSTRUCTIONS', '.github/copilot-instructions.md'],
+    ['WINDSURF_RULES', '.devin/rules/project.md'],
+    ['CLINE_RULES', '.clinerules/project.md'],
+    ['KIRO_STEERING', '.kiro/steering/project.md'],
+    ['MCP_CONFIG', '.mcp.json'],
+  ])('maps %s to %s', (type, file) => {
+    expect(blueprintTypeToPath(type, 'Team Gemini rules')).toBe(file);
   });
 
-  it('maps CLAUDE_MD to CLAUDE.md', () => {
-    expect(blueprintTypeToPath('CLAUDE_MD')).toBe('CLAUDE.md');
+  it('maps a command type into its folder, one file per command', () => {
+    expect(blueprintTypeToPath('CLAUDE_COMMAND', 'Deploy Now')).toBe('.claude/commands/deploy-now.md');
+    expect(blueprintTypeToPath('COPILOT_PROMPT', 'Review')).toBe('.github/prompts/review.prompt.md');
   });
 
-  it('maps CURSOR_RULES with name', () => {
-    expect(blueprintTypeToPath('CURSOR_RULES', 'my rule')).toBe('.cursor/rules/my_rule.mdc');
+  it('maps a skill to its SKILL.md, named by the frontmatter name first', () => {
+    expect(blueprintTypeToPath('AGENT_SKILL', 'My Skill')).toBe('.claude/skills/my-skill/SKILL.md');
+    expect(blueprintTypeToPath('AGENT_SKILL', 'My Skill', '---\nname: pdf-tools\n---\nbody')).toBe(
+      '.claude/skills/pdf-tools/SKILL.md'
+    );
   });
 
-  it('maps CURSOR_RULES without name', () => {
-    expect(blueprintTypeToPath('CURSOR_RULES')).toBe('.cursor/rules/default.mdc');
+  it('maps a subagent to its file under .claude/agents', () => {
+    expect(blueprintTypeToPath('AGENT_DEFINITION', 'Code Reviewer')).toBe('.claude/agents/code-reviewer.md');
   });
 
-  it('maps COPILOT_INSTRUCTIONS', () => {
-    expect(blueprintTypeToPath('COPILOT_INSTRUCTIONS')).toBe('.github/copilot-instructions.md');
-  });
-
-  it('maps WINDSURF_RULES', () => {
-    expect(blueprintTypeToPath('WINDSURF_RULES')).toBe('.windsurfrules');
-  });
-
-  it('maps CLINE_RULES', () => {
-    expect(blueprintTypeToPath('CLINE_RULES')).toBe('.clinerules');
-  });
-
-  it('maps AIDER_RULES', () => {
-    expect(blueprintTypeToPath('AIDER_RULES')).toBe('.aider.conf.yml');
-  });
-
-  it('maps CONTINUE_RULES', () => {
-    expect(blueprintTypeToPath('CONTINUE_RULES')).toBe('.continue/config.json');
-  });
-
-  it('maps CODEX_RULES', () => {
-    expect(blueprintTypeToPath('CODEX_RULES')).toBe('CODEX.md');
-  });
-
-  it('maps CUSTOM with name', () => {
-    expect(blueprintTypeToPath('CUSTOM', 'my config')).toBe('my_config');
-  });
-
-  it('maps CUSTOM without name', () => {
+  it('never writes a file named after the blueprint: CUSTOM and unknown types go to ai-config.md', () => {
+    expect(blueprintTypeToPath('CUSTOM', 'my config')).toBe('ai-config.md');
     expect(blueprintTypeToPath('CUSTOM')).toBe('ai-config.md');
-  });
-
-  it('maps unknown type without name to default ai-config.md', () => {
-    expect(blueprintTypeToPath('UNKNOWN_TYPE' as any)).toBe('ai-config.md');
-  });
-
-  it('maps unknown type with name to sanitized name', () => {
-    expect(blueprintTypeToPath('UNKNOWN_TYPE' as any, 'my config')).toBe('my_config');
+    expect(blueprintTypeToPath('SOMETHING_NEW', 'Team Gemini rules')).toBe('ai-config.md');
   });
 });
 
@@ -125,9 +109,7 @@ describe('blueprintTypeLabel', () => {
     expect(blueprintTypeLabel('COPILOT_INSTRUCTIONS')).toBe('Copilot Instructions');
     expect(blueprintTypeLabel('WINDSURF_RULES')).toBe('Windsurf Rules');
     expect(blueprintTypeLabel('CLINE_RULES')).toBe('Cline Rules');
-    expect(blueprintTypeLabel('AIDER_RULES')).toBe('Aider Rules');
-    expect(blueprintTypeLabel('CONTINUE_RULES')).toBe('Continue Rules');
-    expect(blueprintTypeLabel('CODEX_RULES')).toBe('Codex Rules');
+    expect(blueprintTypeLabel('CODEX_MD')).toBe('Codex');
     expect(blueprintTypeLabel('CUSTOM')).toBe('Custom');
   });
 

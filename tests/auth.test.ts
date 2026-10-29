@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { window, env, createMockSecretStorage, workspace } from './__mocks__/vscode';
 import { LynxPromptApi } from '../src/api';
 import { performDeviceAuth } from '../src/auth';
+import * as crypto from 'crypto';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -62,6 +63,26 @@ describe('performDeviceAuth', () => {
     expect(result).toBe(true);
     expect(env.openExternal).toHaveBeenCalled();
     expect(api.token).toBe('new-token');
+  }, 15000);
+
+  it('polls with the verifier whose SHA-256 it sent as the code challenge', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ session_id: 'sess-1', auth_url: 'https://lynxprompt.geiser.cloud/auth', expires_at: '2099-01-01' }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ status: 'completed', token: 't' }) });
+    window.withProgress.mockImplementation(
+      async (_opts: unknown, task: (progress: unknown, token: unknown) => Promise<unknown>) =>
+        task({ report: vi.fn() }, { isCancellationRequested: false, onCancellationRequested: vi.fn() })
+    );
+
+    await performDeviceAuth(api);
+
+    const challenge = JSON.parse(mockFetch.mock.calls[0][1].body).code_challenge;
+    const verifier = mockFetch.mock.calls[1][1].headers['X-CLI-Verifier'];
+    expect(challenge).toBe(crypto.createHash('sha256').update(verifier).digest('base64url'));
   }, 15000);
 
   it('shows error if browser fails to open but still succeeds auth', async () => {

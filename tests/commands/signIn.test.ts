@@ -77,7 +77,8 @@ describe('signIn', () => {
     const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ name: 'Test User', email: 'test@test.com' }),
+      // /api/v1/user wraps the user object
+      json: async () => ({ user: { id: 'u1', name: 'Test User', email: 'test@test.com', image: null } }),
     });
     vi.stubGlobal('fetch', mockFetch);
 
@@ -93,6 +94,9 @@ describe('signIn', () => {
       'setContext',
       'lynxprompt.authenticated',
       true
+    );
+    expect(window.showInformationMessage).toHaveBeenCalledWith(
+      'Signed in to LynxPrompt as Test User'
     );
   });
 

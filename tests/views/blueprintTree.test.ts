@@ -58,6 +58,27 @@ describe('BlueprintTreeProvider', () => {
       expect(labels[1]).toContain('CLAUDE.md');
     });
 
+    it('shows blueprints past the first page of 100', async () => {
+      await api.setToken('token');
+      const bp = (id: string, type: string) => ({ id, name: id, type, tier: 'SHORT', visibility: 'PRIVATE', tags: [], downloads: 0, favorites: 0, content_checksum: id });
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ blueprints: Array.from({ length: 100 }, (_, i) => bp(`a${i}`, 'AGENTS_MD')), total: 150, limit: 100, offset: 0, has_more: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ blueprints: Array.from({ length: 50 }, (_, i) => bp(`c${i}`, 'CLAUDE_MD')), total: 150, limit: 100, offset: 100, has_more: false }),
+        });
+
+      const children = await provider.getChildren();
+
+      const labels = children.map((c) => (c as any).label);
+      expect(labels).toEqual(['AGENTS.md (100)', 'CLAUDE.md (50)']);
+    });
+
     it('handles API error gracefully', async () => {
       await api.setToken('token');
 

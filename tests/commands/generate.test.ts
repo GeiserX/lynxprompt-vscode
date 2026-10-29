@@ -205,7 +205,7 @@ describe('convertFormat', () => {
       edit: vi.fn(),
     } as any;
 
-    window.showQuickPick.mockResolvedValueOnce({ label: 'Codex Rules', type: 'CODEX_RULES' });
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Codex Rules', type: 'CODEX_MD' });
     workspace.openTextDocument.mockResolvedValueOnce({ getText: () => '' });
 
     await convertFormat();

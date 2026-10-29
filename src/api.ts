@@ -1,15 +1,36 @@
 import * as vscode from "vscode";
+import * as crypto from "crypto";
 import {
   Blueprint,
+  BlueprintListItem,
   BlueprintListResponse,
   CreateBlueprintRequest,
   UpdateBlueprintRequest,
   UserInfo,
+  UserResponse,
   DeviceAuthInitResponse,
   DeviceAuthPollResponse,
   ApiError,
 } from "./types";
 import { getBaseUrl } from "./utils/baseUrl";
+
+/** A non-2xx answer from the API, with its HTTP status. */
+export class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+/**
+ * A PKCE pair for sign-in: the verifier stays in this process and only its
+ * SHA-256 (the challenge) goes into the session the browser URL names, so
+ * the session id alone is not enough to collect the token.
+ */
+export function createPkcePair(): { verifier: string; challenge: string } {
+  const verifier = crypto.randomBytes(32).toString("base64url");
+  const challenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
 
 export class LynxPromptApi {
   private _token: string | undefined;
@@ -47,13 +68,15 @@ export class LynxPromptApi {
     method: string,
     path: string,
     body?: unknown,
-    authenticated = true
+    authenticated = true,
+    extraHeaders: Record<string, string> = {}
   ): Promise<T> {
     const url = `${this.getBaseUrl()}${path}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "User-Agent": "lynxprompt-vscode/0.1.0",
+      ...extraHeaders,
     };
 
     if (authenticated) {
@@ -93,7 +116,10 @@ export class LynxPromptApi {
         throw new Error("Authentication expired. Please sign in again.");
       }
 
-      throw new Error(`API error (${response.status}): ${errorMessage}`);
+      throw new ApiRequestError(
+        `API error (${response.status}): ${errorMessage}`,
+        response.status
+      );
     }
 
     if (response.status === 204) {
@@ -104,27 +130,47 @@ export class LynxPromptApi {
   }
 
   // Auth endpoints
-  async initDeviceAuth(): Promise<DeviceAuthInitResponse> {
+  async initDeviceAuth(codeChallenge: string): Promise<DeviceAuthInitResponse> {
     return this.request<DeviceAuthInitResponse>(
       "POST",
       "/api/cli-auth/init",
-      undefined,
+      { code_challenge: codeChallenge },
       false
     );
   }
 
-  async pollDeviceAuth(sessionId: string): Promise<DeviceAuthPollResponse> {
+  async pollDeviceAuth(
+    sessionId: string,
+    verifier: string
+  ): Promise<DeviceAuthPollResponse> {
     return this.request<DeviceAuthPollResponse>(
       "GET",
       `/api/cli-auth/poll?session=${encodeURIComponent(sessionId)}`,
       undefined,
-      false
+      false,
+      { "X-CLI-Verifier": verifier }
     );
+  }
+
+  /**
+   * Revoke the stored token on the server, so signing out ends it there too.
+   * Best effort: sign-out clears the local copy whatever this returns.
+   */
+  async revokeToken(): Promise<void> {
+    if (!this._token) {
+      return;
+    }
+    try {
+      await this.request<unknown>("POST", "/api/cli-auth/revoke");
+    } catch {
+      // Offline, or the token is already invalid
+    }
   }
 
   // User endpoints
   async getUser(): Promise<UserInfo> {
-    return this.request<UserInfo>("GET", "/api/v1/user");
+    const { user } = await this.request<UserResponse>("GET", "/api/v1/user");
+    return user;
   }
 
   // Blueprint endpoints
@@ -138,6 +184,19 @@ export class LynxPromptApi {
       path += `&visibility=${encodeURIComponent(visibility)}`;
     }
     return this.request<BlueprintListResponse>("GET", path);
+  }
+
+  /** Every blueprint of the user, following has_more (the server caps a page at 100). */
+  async listAllBlueprints(): Promise<BlueprintListItem[]> {
+    const all: BlueprintListItem[] = [];
+    const limit = 100;
+    for (let offset = 0; ; offset += limit) {
+      const page = await this.listBlueprints(limit, offset);
+      all.push(...page.blueprints);
+      if (!page.has_more || page.blueprints.length === 0) {
+        return all;
+      }
+    }
   }
 
   async getBlueprint(id: string): Promise<Blueprint> {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockSecretStorage, workspace, commands } from './__mocks__/vscode';
-import { LynxPromptApi } from '../src/api';
+import * as crypto from 'crypto';
+import { LynxPromptApi, ApiRequestError, createPkcePair } from '../src/api';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -225,7 +226,7 @@ describe('LynxPromptApi', () => {
         json: async () => mockResponse,
       });
 
-      const result = await api.initDeviceAuth();
+      const result = await api.initDeviceAuth('challenge-abc');
       expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://lynxprompt.geiser.cloud/api/cli-auth/init',
@@ -244,7 +245,7 @@ describe('LynxPromptApi', () => {
         json: async () => mockResponse,
       });
 
-      const result = await api.pollDeviceAuth('sess-123');
+      const result = await api.pollDeviceAuth('sess-123', 'verifier-xyz');
       expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         'https://lynxprompt.geiser.cloud/api/cli-auth/poll?session=sess-123',
@@ -259,11 +260,122 @@ describe('LynxPromptApi', () => {
         json: async () => ({ status: 'pending' }),
       });
 
-      await api.pollDeviceAuth('sess with spaces');
+      await api.pollDeviceAuth('sess with spaces', 'verifier-xyz');
       expect(mockFetch).toHaveBeenCalledWith(
         'https://lynxprompt.geiser.cloud/api/cli-auth/poll?session=sess%20with%20spaces',
         expect.any(Object)
       );
+    });
+  });
+
+  describe('sign-in with PKCE', () => {
+    it('initDeviceAuth sends the code challenge, so the server keeps accepting the login after 2027-01-01', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
+
+      await api.initDeviceAuth('challenge-abc');
+
+      const [, options] = mockFetch.mock.calls[0];
+      expect(JSON.parse(options.body)).toEqual({ code_challenge: 'challenge-abc' });
+    });
+
+    it('pollDeviceAuth sends the verifier, so the session id alone cannot collect the token', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ status: 'pending' }) });
+
+      await api.pollDeviceAuth('sess-1', 'verifier-xyz');
+
+      const [, options] = mockFetch.mock.calls[0];
+      expect(options.headers['X-CLI-Verifier']).toBe('verifier-xyz');
+      expect(options.headers.Authorization).toBeUndefined();
+    });
+
+    it('createPkcePair returns a base64url SHA-256 challenge of a fresh verifier', () => {
+      const a = createPkcePair();
+      const b = createPkcePair();
+      expect(a.verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(a.challenge).toBe(crypto.createHash('sha256').update(a.verifier).digest('base64url'));
+      expect(a.verifier).not.toBe(b.verifier);
+    });
+  });
+
+  describe('revokeToken', () => {
+    it('POSTs the stored token to /api/cli-auth/revoke', async () => {
+      await api.setToken('tok-1');
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true }) });
+
+      await api.revokeToken();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://lynxprompt.geiser.cloud/api/cli-auth/revoke',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ Authorization: 'Bearer tok-1' }),
+        })
+      );
+    });
+
+    it('never throws, even when the server is unreachable', async () => {
+      await api.setToken('tok-1');
+      mockFetch.mockRejectedValueOnce(new Error('offline'));
+
+      await expect(api.revokeToken()).resolves.toBeUndefined();
+    });
+
+    it('does nothing without a token', async () => {
+      await api.revokeToken();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getUser', () => {
+    it('unwraps the { user } object /api/v1/user returns', async () => {
+      await api.setToken('tok-1');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ user: { id: 'u1', name: 'Ada', email: 'ada@example.com', image: null } }),
+      });
+
+      const user = await api.getUser();
+
+      expect(user.name).toBe('Ada');
+      expect(user.email).toBe('ada@example.com');
+    });
+  });
+
+  describe('listAllBlueprints', () => {
+    it('pages with limit=100 until has_more is false', async () => {
+      await api.setToken('tok-1');
+      const page = (ids: string[], has_more: boolean) => ({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprints: ids.map((id) => ({ id })), total: 150, limit: 100, offset: 0, has_more }),
+      });
+      mockFetch
+        .mockResolvedValueOnce(page(Array.from({ length: 100 }, (_, i) => `a${i}`), true))
+        .mockResolvedValueOnce(page(Array.from({ length: 50 }, (_, i) => `b${i}`), false));
+
+      const all = await api.listAllBlueprints();
+
+      expect(all).toHaveLength(150);
+      expect(mockFetch.mock.calls[0][0]).toBe('https://lynxprompt.geiser.cloud/api/v1/blueprints?limit=100&offset=0');
+      expect(mockFetch.mock.calls[1][0]).toBe('https://lynxprompt.geiser.cloud/api/v1/blueprints?limit=100&offset=100');
+    });
+  });
+
+  describe('errors', () => {
+    it('carry the HTTP status', async () => {
+      await api.setToken('tok-1');
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+        json: async () => ({ error: 'Conflict - blueprint has been modified' }),
+      });
+
+      const error = await api.updateBlueprint('1', { content: 'x', expected_checksum: 'old' }).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ApiRequestError);
+      expect(error.status).toBe(409);
     });
   });
 

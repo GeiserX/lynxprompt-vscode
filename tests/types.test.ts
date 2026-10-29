@@ -24,12 +24,10 @@ describe('Type definitions', () => {
       'COPILOT_INSTRUCTIONS',
       'WINDSURF_RULES',
       'CLINE_RULES',
-      'AIDER_RULES',
-      'CONTINUE_RULES',
-      'CODEX_RULES',
+      'CODEX_MD',
       'CUSTOM',
     ];
-    expect(types).toHaveLength(10);
+    expect(types).toHaveLength(8);
   });
 
   it('BlueprintTier values', () => {
@@ -72,6 +70,7 @@ describe('Type definitions', () => {
       total: 0,
       limit: 100,
       offset: 0,
+      has_more: false,
     };
     expect(response.blueprints).toEqual([]);
   });

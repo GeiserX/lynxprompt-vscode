@@ -7,6 +7,8 @@ import { pathToBlueprintType } from "./fileMapping";
 /**
  * Glob patterns for known AI configuration files.
  * .cursorrules is deprecated -- Cursor uses .cursor/rules/*.mdc now.
+ * Rules files only: a JSON or YAML tool config (.aider.conf.yml,
+ * .continue/config.json) can hold API keys, so it is never offered for push.
  */
 const CONFIG_GLOBS: string[] = [
   "**/AGENTS.md",
@@ -17,8 +19,6 @@ const CONFIG_GLOBS: string[] = [
   "**/copilot-instructions.md",
   "**/.windsurfrules",
   "**/.clinerules",
-  "**/.aider.conf.yml",
-  "**/.continue/config.json",
   "**/CODEX.md",
 ];
 

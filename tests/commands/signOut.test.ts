@@ -59,6 +59,24 @@ describe('signOut', () => {
     );
   });
 
+  it('revokes the token on the server before deleting it locally', async () => {
+    const mockFetch = vi.fn().mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true }) });
+    vi.stubGlobal('fetch', mockFetch);
+    await api.setToken('token');
+    window.showWarningMessage.mockResolvedValueOnce('Sign Out');
+
+    await signOut(api);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://lynxprompt.geiser.cloud/api/cli-auth/revoke',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer token' }),
+      })
+    );
+    expect(secrets.delete).toHaveBeenCalledWith('lynxprompt.token');
+  });
+
   it('refreshes blueprints after signing out', async () => {
     await api.setToken('token');
 

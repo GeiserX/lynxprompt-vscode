@@ -153,6 +153,112 @@ describe('pushConfig', () => {
     );
   });
 
+  it('sends repository_path on create, so a nested file pulls back to the same place', async () => {
+    await api.setToken('token');
+    const fileUri = Uri.file('/workspace/packages/api/AGENTS.md');
+    window.showOpenDialog.mockResolvedValueOnce([fileUri]);
+    workspace.fs.readFile.mockResolvedValueOnce(Buffer.from('# Package rules'));
+    window.showInputBox.mockResolvedValueOnce('API rules').mockResolvedValueOnce('');
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Private', value: 'PRIVATE' });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({ blueprint: { id: 'new-1', content_checksum: 'remote-1' } }),
+    });
+
+    await pushConfig(api, linkMappings);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.repository_path).toBe('packages/api/AGENTS.md');
+    expect(body.type).toBe('AGENTS_MD');
+    expect(linkMappings.get(fileUri.fsPath)?.remoteChecksum).toBe('remote-1');
+  });
+
+  it('pushes CODEX.md under the server type CODEX_MD, not CUSTOM', async () => {
+    await api.setToken('token');
+    const fileUri = Uri.file('/workspace/CODEX.md');
+    window.showOpenDialog.mockResolvedValueOnce([fileUri]);
+    workspace.fs.readFile.mockResolvedValueOnce(Buffer.from('# Codex'));
+    window.showInputBox.mockResolvedValueOnce('Codex').mockResolvedValueOnce('');
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Private', value: 'PRIVATE' });
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ blueprint: { id: 'new-1' } }) });
+
+    await pushConfig(api, linkMappings);
+
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body).type).toBe('CODEX_MD');
+  });
+
+  describe('updating a linked blueprint that changed in the cloud', () => {
+    const filePath = '/workspace/AGENTS.md';
+    const conflict = {
+      ok: false,
+      status: 409,
+      statusText: 'Conflict',
+      json: async () => ({ error: 'Conflict - blueprint has been modified' }),
+    };
+
+    beforeEach(async () => {
+      await api.setToken('token');
+      linkMappings.set(filePath, {
+        localPath: filePath,
+        blueprintId: 'bp-1',
+        lastChecksum: 'local-1',
+        remoteChecksum: 'remote-1',
+      });
+      window.showOpenDialog.mockResolvedValueOnce([Uri.file(filePath)]);
+      workspace.fs.readFile.mockResolvedValueOnce(Buffer.from('# Local edit'));
+      window.showQuickPick.mockResolvedValueOnce({ label: 'Update existing blueprint', action: 'update' });
+    });
+
+    it('sends the last seen checksum as expected_checksum and keeps the new one', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprint: { id: 'bp-1', content_checksum: 'remote-2' } }),
+      });
+
+      await pushConfig(api, linkMappings);
+
+      expect(JSON.parse(mockFetch.mock.calls[0][1].body).expected_checksum).toBe('remote-1');
+      expect(linkMappings.get(filePath)?.remoteChecksum).toBe('remote-2');
+    });
+
+    it('asks before overwriting on 409 and writes nothing on Cancel', async () => {
+      mockFetch.mockResolvedValueOnce(conflict);
+      window.showWarningMessage.mockResolvedValueOnce('Cancel');
+
+      await pushConfig(api, linkMappings);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(linkMappings.get(filePath)?.remoteChecksum).toBe('remote-1');
+    });
+
+    it('overwrites without the lock when the user picks Overwrite', async () => {
+      mockFetch.mockResolvedValueOnce(conflict).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprint: { id: 'bp-1', content_checksum: 'remote-3' } }),
+      });
+      window.showWarningMessage.mockResolvedValueOnce('Overwrite');
+
+      await pushConfig(api, linkMappings);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(JSON.parse(mockFetch.mock.calls[1][1].body).expected_checksum).toBeUndefined();
+      expect(linkMappings.get(filePath)?.remoteChecksum).toBe('remote-3');
+    });
+
+    it('opens the diff on Show Diff instead of pushing', async () => {
+      mockFetch.mockResolvedValueOnce(conflict);
+      window.showWarningMessage.mockResolvedValueOnce('Show Diff');
+
+      await pushConfig(api, linkMappings);
+
+      expect(commands.executeCommand).toHaveBeenCalledWith('lynxprompt.diffBlueprint', expect.anything());
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('creates new blueprint from linked file when user chooses create', async () => {
     await api.setToken('token');
 

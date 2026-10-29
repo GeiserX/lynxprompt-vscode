@@ -41,7 +41,7 @@ export async function convertFormat(): Promise<void> {
     { label: "Copilot Instructions", type: "COPILOT_INSTRUCTIONS" },
     { label: "Windsurf Rules", type: "WINDSURF_RULES" },
     { label: "Cline Rules", type: "CLINE_RULES" },
-    { label: "Codex Rules", type: "CODEX_RULES" },
+    { label: "Codex Rules", type: "CODEX_MD" },
   ];
 
   const picked = await vscode.window.showQuickPick(
@@ -89,7 +89,7 @@ function convertContent(content: string, targetType: BlueprintType): string {
       return stripped; // Plain text, no special wrapping
     case "CLINE_RULES":
       return stripped;
-    case "CODEX_RULES":
+    case "CODEX_MD":
       return wrapCodexMd(stripped);
     default:
       return stripped;

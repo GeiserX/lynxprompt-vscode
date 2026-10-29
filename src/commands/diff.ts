@@ -34,14 +34,14 @@ export async function diffBlueprint(
 
   if (!blueprintId) {
     // Try to pick a blueprint
-    const response = await api.listBlueprints(200);
-    if (response.blueprints.length === 0) {
+    const blueprints = await api.listAllBlueprints();
+    if (blueprints.length === 0) {
       vscode.window.showInformationMessage("No blueprints available to compare.");
       return;
     }
 
     const picked = await vscode.window.showQuickPick(
-      response.blueprints.map((bp) => ({
+      blueprints.map((bp) => ({
         label: bp.name,
         description: `${bp.type} - ${bp.visibility.toLowerCase()}`,
         blueprintId: bp.id,
@@ -84,7 +84,9 @@ export async function diffBlueprint(
 
     // Fallback: try the default path
     if (!localFilePath) {
-      const relativePath = blueprintTypeToPath(blueprint.type, blueprint.name);
+      const relativePath =
+        blueprint.repository_path ||
+        blueprintTypeToPath(blueprint.type, blueprint.name, blueprint.content);
       for (const folder of workspaceFolders) {
         const candidatePath = path.join(folder.uri.fsPath, relativePath);
         try {
