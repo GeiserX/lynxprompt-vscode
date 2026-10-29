@@ -26,6 +26,10 @@ export class Uri {
     return new Uri('file', '', path, '', '');
   }
 
+  static from(components: { scheme: string; path: string }): Uri {
+    return new Uri(components.scheme, '', components.path, '', '');
+  }
+
   static parse(value: string): Uri {
     return new Uri('https', '', value, '', '');
   }
@@ -240,6 +244,8 @@ export const workspace = {
     index: 0,
   })),
   findFiles: vi.fn().mockResolvedValue([]),
+  registerTextDocumentContentProvider: vi.fn().mockReturnValue(new Disposable(() => {})),
+  onDidCloseTextDocument: vi.fn().mockReturnValue(new Disposable(() => {})),
   openTextDocument: vi.fn().mockResolvedValue({
     getText: vi.fn().mockReturnValue(''),
     uri: Uri.file('/workspace/test.md'),

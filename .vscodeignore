@@ -1,12 +1,9 @@
-.vscode/**
-.vscode-test/**
-src/**
-node_modules/**
-.gitignore
-tsconfig.json
-esbuild.js
-**/*.map
-**/*.ts
-!dist/**
-.eslintrc*
-scripts/**
+# Allowlist: ship only what the extension runs on, so dev and agent files
+# added to the repo never reach the published VSIX
+**
+!dist/extension.js
+!media/**
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE

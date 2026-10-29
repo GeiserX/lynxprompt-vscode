@@ -6,6 +6,21 @@ import { LocalFileTreeItem } from "../views/localFilesTree";
 import { LinkMapping } from "../types";
 import { blueprintTypeToPath, resolveInside } from "../utils/fileMapping";
 
+/** URI scheme of the cloud side of a diff, served from memory. */
+export const CLOUD_SCHEME = "lynxprompt-cloud";
+
+const cloudContent = new Map<string, string>();
+let comparisons = 0;
+
+export const cloudContentProvider: vscode.TextDocumentContentProvider = {
+  provideTextDocumentContent: (uri) => cloudContent.get(uri.toString()) ?? "",
+};
+
+/** Drop the content of a closed cloud document. */
+export function forgetCloudContent(uri: vscode.Uri): void {
+  cloudContent.delete(uri.toString());
+}
+
 export async function diffBlueprint(
   api: LynxPromptApi,
   linkMappings: Map<string, LinkMapping>,
@@ -103,23 +118,15 @@ export async function diffBlueprint(
     }
   }
 
-  // Create a virtual document for the cloud content
-  const cloudContent = Buffer.from(blueprint.content, "utf-8");
-
-  // Use a temporary file for the cloud version
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  if (!workspaceFolder) {
-    vscode.window.showErrorMessage("No workspace folder open.");
-    return;
-  }
-
+  // The cloud side is a read-only virtual document: nothing is written into
+  // the workspace, where a PRIVATE blueprint's content could get committed.
+  // One URI per comparison, so an open diff keeps the snapshot it was opened with
   const ext = localFilePath ? path.extname(localFilePath) : ".md";
-  const tempDir = path.join(workspaceFolder.uri.fsPath, ".lynxprompt-tmp");
-  const tempPath = path.join(tempDir, `${blueprint.id}-cloud${ext}`);
-  const tempUri = vscode.Uri.file(tempPath);
-
-  await vscode.workspace.fs.createDirectory(vscode.Uri.file(tempDir));
-  await vscode.workspace.fs.writeFile(tempUri, cloudContent);
+  const cloudUri = vscode.Uri.from({
+    scheme: CLOUD_SCHEME,
+    path: `/${++comparisons}/${blueprint.id}-cloud${ext}`,
+  });
+  cloudContent.set(cloudUri.toString(), blueprint.content);
 
   if (localFilePath) {
     const localUri = vscode.Uri.file(localFilePath);
@@ -128,27 +135,15 @@ export async function diffBlueprint(
     await vscode.commands.executeCommand(
       "vscode.diff",
       localUri,
-      tempUri,
+      cloudUri,
       `${localRelative} (Local) <-> ${blueprint.name} (Cloud)`
     );
   } else {
     // No local file -- just open the cloud content
-    const doc = await vscode.workspace.openTextDocument(tempUri);
+    const doc = await vscode.workspace.openTextDocument(cloudUri);
     await vscode.window.showTextDocument(doc);
     vscode.window.showInformationMessage(
       `No local file found for "${blueprint.name}". Showing cloud version.`
     );
   }
-
-  // Schedule cleanup of temp files after a delay
-  setTimeout(async () => {
-    try {
-      await vscode.workspace.fs.delete(tempUri);
-      await vscode.workspace.fs.delete(vscode.Uri.file(tempDir), {
-        recursive: true,
-      });
-    } catch {
-      // Ignore cleanup errors
-    }
-  }, 60_000);
 }

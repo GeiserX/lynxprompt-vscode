@@ -11,6 +11,7 @@ import {
   DeviceAuthInitResponse,
   DeviceAuthPollResponse,
   ApiError,
+  HierarchyListItem,
 } from "./types";
 import { getBaseUrl } from "./utils/baseUrl";
 
@@ -224,6 +225,34 @@ export class LynxPromptApi {
       data
     );
     return response.blueprint;
+  }
+
+  // Hierarchy endpoints
+
+  /** Every hierarchy of the user, following has_more (the server caps a page at 100). */
+  async listAllHierarchies(): Promise<HierarchyListItem[]> {
+    const all: HierarchyListItem[] = [];
+    const limit = 100;
+    for (let offset = 0; ; offset += limit) {
+      const page = await this.request<{ hierarchies: HierarchyListItem[]; has_more?: boolean }>(
+        "GET",
+        `/api/v1/hierarchies?limit=${limit}&offset=${offset}`
+      );
+      all.push(...page.hierarchies);
+      if (!page.has_more || page.hierarchies.length === 0) {
+        return all;
+      }
+    }
+  }
+
+  /** The hierarchy with this repository_root, created when missing. */
+  async ensureHierarchy(name: string, repositoryRoot: string): Promise<HierarchyListItem> {
+    const response = await this.request<{ hierarchy: HierarchyListItem }>(
+      "POST",
+      "/api/v1/hierarchies",
+      { name, repository_root: repositoryRoot }
+    );
+    return response.hierarchy;
   }
 
   async deleteBlueprint(id: string): Promise<void> {
