@@ -20,7 +20,8 @@ export function normalizeRemote(remote: string): string {
     const host = hostPort.startsWith("[")
       ? hostPort.slice(0, hostPort.indexOf("]") + 1)
       : hostPort.replace(/:\d*$/, "");
-    return `https://${host.toLowerCase()}/${url[2].replace(/^\/+/, "")}`;
+    const rest = url[2].replace(/^\/+/, "");
+    return `https://${host.toLowerCase()}${rest ? `/${rest}` : ""}`;
   }
 
   // scp style: [user@]host:path, with no "://" and no slash before the colon

@@ -31,8 +31,20 @@ describe('normalizeRemote', () => {
     expect(normalizeRemote('git@github.com:geiserx/lynxprompt.git')).toBe('https://github.com/geiserx/lynxprompt');
   });
 
+  it('matches the edge cases the CLI and the action pin', () => {
+    expect(normalizeRemote('git://Example.ORG/Team/Repo.GIT')).toBe('https://example.org/Team/Repo');
+    expect(normalizeRemote('git@host.example:/owner/repo.git')).toBe('https://host.example/owner/repo');
+    expect(normalizeRemote('git+ssh://git@host.example/owner/repo')).toBe('https://host.example/owner/repo');
+    expect(normalizeRemote('https://host.example//owner/repo')).toBe('https://host.example/owner/repo');
+    expect(normalizeRemote('https://host.example/')).toBe('https://host.example');
+    const hash = (v: string) => createHash('sha256').update(v).digest('hex').substring(0, 16);
+    expect(hash(normalizeRemote('https://host.example/'))).toBe('566273f00e30ee90');
+    expect(hash(normalizeRemote('git@host.example:/owner/repo.git'))).toBe('c0afd4f70e32de36');
+  });
+
   it('leaves a local path alone, case included', () => {
     expect(normalizeRemote('/srv/git/Repo.git/')).toBe('/srv/git/Repo');
+    expect(normalizeRemote(' /srv/git/repo.git/ ')).toBe('/srv/git/repo');
   });
 });
 
