@@ -9,6 +9,7 @@ import { pullBlueprint } from "./commands/pull";
 import { pushConfig } from "./commands/push";
 import { diffBlueprint } from "./commands/diff";
 import { generateConfig, convertFormat } from "./commands/generate";
+import { getBaseUrl } from "./utils/baseUrl";
 
 /** Persistent link mappings stored in workspace state. */
 const LINK_MAPPINGS_KEY = "lynxprompt.linkMappings";
@@ -83,10 +84,7 @@ export async function activate(
     ),
     vscode.commands.registerCommand("lynxprompt.openBlueprint", (item) => {
       if (item && item.blueprint) {
-        const config = vscode.workspace.getConfiguration("lynxprompt");
-        const baseUrl = config
-          .get<string>("apiUrl", "https://lynxprompt.com")
-          ?.replace(/\/+$/, "");
+        const baseUrl = getBaseUrl();
         const url = `${baseUrl}/blueprints/${item.blueprint.id}`;
         vscode.env.openExternal(vscode.Uri.parse(url));
       }

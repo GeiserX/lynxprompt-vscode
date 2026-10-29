@@ -204,7 +204,7 @@ export const commands = {
 
 // --- workspace ---
 const _configValues: Record<string, unknown> = {
-  'lynxprompt.apiUrl': 'https://lynxprompt.com',
+  'lynxprompt.apiUrl': 'https://lynxprompt.geiser.cloud',
   'lynxprompt.autoDetectConfigFiles': true,
   'lynxprompt.watchFileChanges': true,
   'lynxprompt.showStatusBar': true,

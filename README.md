@@ -15,7 +15,7 @@
   <a href="https://github.com/GeiserX/lynxprompt-vscode"><img src="https://img.shields.io/github/stars/GeiserX/lynxprompt-vscode?style=flat-square&logo=github" alt="GitHub Stars"></a>
 </p>
 
-The official VS Code extension for [LynxPrompt](https://lynxprompt.com) — a self-hostable platform for managing AI IDE configuration files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`, `copilot-instructions.md`, `.windsurfrules`, and [the other formats LynxPrompt supports](https://github.com/GeiserX/LynxPrompt/blob/main/docs/features.md)).
+The official VS Code extension for [LynxPrompt](https://lynxprompt.geiser.cloud) — a self-hostable platform for managing AI IDE configuration files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`, `copilot-instructions.md`, `.windsurfrules`, and [the other formats LynxPrompt supports](https://github.com/GeiserX/LynxPrompt/blob/main/docs/features.md)).
 
 This extension brings LynxPrompt directly into your editor so you can manage cloud blueprints and local config files without switching to the browser.
 

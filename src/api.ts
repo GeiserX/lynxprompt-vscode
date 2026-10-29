@@ -9,6 +9,7 @@ import {
   DeviceAuthPollResponse,
   ApiError,
 } from "./types";
+import { getBaseUrl } from "./utils/baseUrl";
 
 export class LynxPromptApi {
   private _token: string | undefined;
@@ -16,9 +17,7 @@ export class LynxPromptApi {
   constructor(private readonly _secretStorage: vscode.SecretStorage) {}
 
   private getBaseUrl(): string {
-    const config = vscode.workspace.getConfiguration("lynxprompt");
-    const url = config.get<string>("apiUrl", "https://lynxprompt.com");
-    return url.replace(/\/+$/, "");
+    return getBaseUrl();
   }
 
   get token(): string | undefined {

@@ -8,7 +8,7 @@ describe('generateConfig', () => {
     resetAllMocks();
     workspace.getConfiguration.mockReturnValue({
       get: vi.fn().mockImplementation((key: string, defaultValue?: unknown) => {
-        if (key === 'apiUrl') return 'https://lynxprompt.com';
+        if (key === 'apiUrl') return 'https://lynxprompt.geiser.cloud';
         return defaultValue;
       }),
       update: vi.fn(),
@@ -22,12 +22,12 @@ describe('generateConfig', () => {
 
     expect(env.openExternal).toHaveBeenCalled();
     const calledUri = env.openExternal.mock.calls[0][0];
-    expect(calledUri.path).toContain('lynxprompt.com/wizard');
+    expect(calledUri.path).toContain('lynxprompt.geiser.cloud/wizard');
   });
 
   it('strips trailing slashes from API URL', async () => {
     workspace.getConfiguration.mockReturnValue({
-      get: vi.fn().mockReturnValue('https://lynxprompt.com///'),
+      get: vi.fn().mockReturnValue('https://lynxprompt.geiser.cloud///'),
       update: vi.fn(),
       has: vi.fn(),
       inspect: vi.fn(),
@@ -36,7 +36,7 @@ describe('generateConfig', () => {
     await generateConfig();
 
     const calledUri = env.openExternal.mock.calls[0][0];
-    expect(calledUri.path).toContain('lynxprompt.com/wizard');
+    expect(calledUri.path).toContain('lynxprompt.geiser.cloud/wizard');
     expect(calledUri.path).not.toContain('///');
   });
 });

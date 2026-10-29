@@ -18,7 +18,7 @@ describe('BlueprintTreeProvider', () => {
     api = new LynxPromptApi(secrets as any);
     provider = new BlueprintTreeProvider(api);
     workspace.getConfiguration.mockReturnValue({
-      get: vi.fn().mockReturnValue('https://lynxprompt.com'),
+      get: vi.fn().mockReturnValue('https://lynxprompt.geiser.cloud'),
       update: vi.fn(),
       has: vi.fn(),
       inspect: vi.fn(),
