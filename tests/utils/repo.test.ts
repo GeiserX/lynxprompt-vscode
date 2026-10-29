@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
 import { normalizeRemote, repositoryRoots } from '../../src/utils/repo';
 
-// Same vectors and hash as the CLI (cli/src) and the GitHub Action: one
+// Same vectors and hash as the CLI (tests/cli/repo-identity.test.ts) and the GitHub Action: one
 // repository must map to one hierarchy whichever client pushed it
 const VECTORS = [
   'git@github.com:GeiserX/LynxPrompt.git',
@@ -10,6 +10,10 @@ const VECTORS = [
   'https://github.com/GeiserX/LynxPrompt.git/',
   'ssh://git@github.com:22/GeiserX/LynxPrompt.git',
   'https://x-access-token:abc@GitHub.com/GeiserX/LynxPrompt',
+  '  git@GITHUB.COM:GeiserX/LynxPrompt.GIT  ',
+  'git://github.com/GeiserX/LynxPrompt.git',
+  'http://github.com:8080/GeiserX/LynxPrompt',
+  'github.com:GeiserX/LynxPrompt',
 ];
 const CANONICAL = 'https://github.com/GeiserX/LynxPrompt';
 const ROOT = 'eb2e56c7498b9899';
@@ -23,8 +27,12 @@ describe('normalizeRemote', () => {
     expect(normalizeRemote('git://Example.org/Owner/Repo.git')).toBe('https://example.org/Owner/Repo');
   });
 
-  it('leaves a local path alone', () => {
-    expect(normalizeRemote('/srv/git/repo.git')).toBe('/srv/git/repo');
+  it('keeps the path case', () => {
+    expect(normalizeRemote('git@github.com:geiserx/lynxprompt.git')).toBe('https://github.com/geiserx/lynxprompt');
+  });
+
+  it('leaves a local path alone, case included', () => {
+    expect(normalizeRemote('/srv/git/Repo.git/')).toBe('/srv/git/Repo');
   });
 });
 
