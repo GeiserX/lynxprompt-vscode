@@ -23,8 +23,8 @@ This extension brings LynxPrompt directly into your editor so you can manage clo
 
 - A sidebar with your cloud blueprints grouped by type, and the AI config files found in the workspace with their sync status.
 - Sign in with a device flow in the browser, no token copying.
-- Pull a blueprint and it lands in the right path: `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/`, `.github/copilot-instructions.md`, `.windsurfrules`.
-- Push a local config back to LynxPrompt from the context menu or the command palette.
+- Pull a blueprint and it lands where it was pushed from, or in the file `lynxp pull` writes for its type: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.cursor/rules/`, `.github/copilot-instructions.md`, `.mcp.json`, skills in `.claude/skills/`.
+- Push a local rules file back to LynxPrompt from the context menu or the command palette. Tool configs that can hold API keys (`.aider.conf.yml`, `.continue/config.json`) are never offered.
 - Compare a local file with its cloud blueprint in the VS Code diff editor.
 - Generate configs in the LynxPrompt wizard, or convert between formats locally.
 - Get notified when a linked file drifts from the cloud version.

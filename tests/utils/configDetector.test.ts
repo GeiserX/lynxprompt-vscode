@@ -56,6 +56,21 @@ describe('getConfigFileType', () => {
 });
 
 describe('detectConfigFiles', () => {
+  it('never scans tool configs that can hold API keys', async () => {
+    workspace.workspaceFolders = [{ uri: Uri.file('/workspace'), name: 'workspace', index: 0 }];
+    workspace.findFiles.mockResolvedValue([]);
+
+    await detectConfigFiles(new Map());
+
+    const globs = workspace.findFiles.mock.calls.map((c: unknown[]) => c[0]);
+    expect(globs).toContain('**/AGENTS.md');
+    expect(globs).toContain('**/GEMINI.md');
+    expect(globs).toContain('**/.devin/rules/project.md');
+    expect(new Set(globs).size).toBe(globs.length);
+    expect(globs).not.toContain('**/.aider.conf.yml');
+    expect(globs).not.toContain('**/.continue/config.json');
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     workspace.workspaceFolders = [
@@ -91,8 +106,6 @@ describe('detectConfigFiles', () => {
       .mockResolvedValueOnce([]) // copilot-instructions.md (root)
       .mockResolvedValueOnce([]) // .windsurfrules
       .mockResolvedValueOnce([]) // .clinerules
-      .mockResolvedValueOnce([]) // .aider.conf.yml
-      .mockResolvedValueOnce([]) // .continue/config.json
       .mockResolvedValueOnce([]); // CODEX.md
 
     const results = await detectConfigFiles(new Map());

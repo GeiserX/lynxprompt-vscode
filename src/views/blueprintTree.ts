@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { LynxPromptApi } from "../api";
-import { BlueprintListItem, BlueprintType } from "../types";
+import { BlueprintListItem } from "../types";
 import { blueprintTypeLabel } from "../utils/fileMapping";
 
 type TreeElement = BlueprintTypeGroup | BlueprintTreeItem;
@@ -33,8 +33,7 @@ export class BlueprintTreeProvider
     if (!element) {
       // Root level: fetch blueprints and group by type
       try {
-        const response = await this.api.listBlueprints(200, 0);
-        this.blueprints = response.blueprints;
+        this.blueprints = await this.api.listAllBlueprints();
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Unknown error";
         vscode.window.showErrorMessage(
@@ -44,7 +43,7 @@ export class BlueprintTreeProvider
       }
 
       // Group by type
-      const groups = new Map<BlueprintType, BlueprintListItem[]>();
+      const groups = new Map<string, BlueprintListItem[]>();
       for (const bp of this.blueprints) {
         const existing = groups.get(bp.type) || [];
         existing.push(bp);
@@ -75,7 +74,7 @@ export class BlueprintTreeProvider
 
 class BlueprintTypeGroup extends vscode.TreeItem {
   constructor(
-    public readonly blueprintType: BlueprintType,
+    public readonly blueprintType: string,
     count: number
   ) {
     super(

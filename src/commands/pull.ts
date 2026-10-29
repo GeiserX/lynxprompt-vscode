@@ -3,7 +3,7 @@ import * as path from "path";
 import { LynxPromptApi } from "../api";
 import { BlueprintTreeItem } from "../views/blueprintTree";
 import { LinkMapping } from "../types";
-import { blueprintTypeToPath } from "../utils/fileMapping";
+import { blueprintTypeToPath, resolveInside } from "../utils/fileMapping";
 import { computeFileChecksum } from "../utils/configDetector";
 
 export async function pullBlueprint(
@@ -17,6 +17,9 @@ export async function pullBlueprint(
   }
 
   let blueprintId: string;
+  // The local file this blueprint is linked to: the pull compares the cloud
+  // version with it, so a cloud change is never hidden behind the old file
+  let linkedPath: string | undefined;
 
   if (item instanceof BlueprintTreeItem) {
     blueprintId = item.blueprint.id;
@@ -25,12 +28,8 @@ export async function pullBlueprint(
     const existingPath = findLocalPathForBlueprint(linkMappings, blueprintId);
     if (existingPath) {
       try {
-        const uri = vscode.Uri.file(existingPath);
-        await vscode.workspace.fs.stat(uri);
-        // File exists — just open it
-        const doc = await vscode.workspace.openTextDocument(uri);
-        await vscode.window.showTextDocument(doc);
-        return;
+        await vscode.workspace.fs.stat(vscode.Uri.file(existingPath));
+        linkedPath = existingPath;
       } catch {
         // File was deleted — remove stale mapping, proceed with pull
         linkMappings.delete(existingPath);
@@ -38,8 +37,8 @@ export async function pullBlueprint(
     }
   } else {
     // Prompt the user to pick a blueprint
-    const response = await api.listBlueprints(200);
-    if (response.blueprints.length === 0) {
+    const blueprints = await api.listAllBlueprints();
+    if (blueprints.length === 0) {
       vscode.window.showInformationMessage(
         "You have no blueprints. Create one at lynxprompt.geiser.cloud"
       );
@@ -47,7 +46,7 @@ export async function pullBlueprint(
     }
 
     const picked = await vscode.window.showQuickPick(
-      response.blueprints.map((bp) => ({
+      blueprints.map((bp) => ({
         label: bp.name,
         description: `${bp.type} - ${bp.visibility.toLowerCase()}`,
         detail: bp.description || undefined,
@@ -85,7 +84,12 @@ export async function pullBlueprint(
   }
 
   let targetFolder: vscode.WorkspaceFolder;
-  if (workspaceFolders.length === 1) {
+  const linkedFolder = linkedPath
+    ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(linkedPath))
+    : undefined;
+  if (linkedFolder) {
+    targetFolder = linkedFolder;
+  } else if (workspaceFolders.length === 1) {
     targetFolder = workspaceFolders[0];
   } else {
     const picked = await vscode.window.showWorkspaceFolderPick({
@@ -97,11 +101,23 @@ export async function pullBlueprint(
     targetFolder = picked;
   }
 
-  // Compute target path: prefer repository_path if set, otherwise derive from type
-  const relativePath = blueprint.repository_path
-    ? blueprint.repository_path
-    : blueprintTypeToPath(blueprint.type, blueprint.name);
-  const absolutePath = path.join(targetFolder.uri.fsPath, relativePath);
+  // Compute target path: the linked file, else repository_path if set,
+  // otherwise derive from type
+  const relativePath = linkedPath
+    ? path.relative(targetFolder.uri.fsPath, linkedPath)
+    : await clineRulesPath(
+        targetFolder.uri.fsPath,
+        blueprint.repository_path ||
+          blueprintTypeToPath(blueprint.type, blueprint.name, blueprint.content)
+      );
+  const absolutePath =
+    linkedPath ?? resolveInside(targetFolder.uri.fsPath, relativePath);
+  if (!absolutePath) {
+    vscode.window.showErrorMessage(
+      `Blueprint "${blueprint.name}" points outside the workspace (${relativePath}); nothing was written.`
+    );
+    return;
+  }
   const targetUri = vscode.Uri.file(absolutePath);
 
   // Check if file already exists
@@ -120,7 +136,7 @@ export async function pullBlueprint(
     if (existingText === blueprint.content) {
       // Already up to date — update mapping with local checksum and open
       const localChecksum = await computeFileChecksum(targetUri);
-      updateLinkMapping(linkMappings, absolutePath, blueprint.id, localChecksum);
+      updateLinkMapping(linkMappings, absolutePath, blueprint.id, localChecksum, blueprint.content_checksum);
       const doc = await vscode.workspace.openTextDocument(targetUri);
       await vscode.window.showTextDocument(doc);
       vscode.window.showInformationMessage(
@@ -190,7 +206,7 @@ export async function pullBlueprint(
 
   // Update link mapping with local checksum (matches what configDetector computes)
   const localChecksum = await computeFileChecksum(targetUri);
-  updateLinkMapping(linkMappings, absolutePath, blueprint.id, localChecksum);
+  updateLinkMapping(linkMappings, absolutePath, blueprint.id, localChecksum, blueprint.content_checksum);
 
   // Open the pulled file
   const doc = await vscode.workspace.openTextDocument(targetUri);
@@ -202,6 +218,27 @@ export async function pullBlueprint(
 
   // Refresh local files tree
   await vscode.commands.executeCommand("lynxprompt.refreshLocalFiles");
+}
+
+/**
+ * Cline reads a legacy .clinerules FILE or a .clinerules/ folder, and both
+ * cannot exist at once: with the file present, a .clinerules/ rule goes to
+ * .cline/rules/ instead, as `lynxp pull` does.
+ */
+async function clineRulesPath(root: string, file: string): Promise<string> {
+  const parts = file.replace(/\\/g, "/").split("/");
+  if (parts.length < 2 || parts[0] !== ".clinerules") {
+    return file;
+  }
+  try {
+    const stat = await vscode.workspace.fs.stat(vscode.Uri.file(path.join(root, ".clinerules")));
+    if (stat.type !== vscode.FileType.File) {
+      return file;
+    }
+  } catch {
+    return file;
+  }
+  return [".cline", "rules", ...parts.slice(1)].join("/");
 }
 
 function findLocalPathForBlueprint(
@@ -220,11 +257,13 @@ function updateLinkMapping(
   linkMappings: Map<string, LinkMapping>,
   localPath: string,
   blueprintId: string,
-  checksum: string
+  checksum: string,
+  remoteChecksum: string
 ): void {
   linkMappings.set(localPath, {
     localPath,
     blueprintId,
     lastChecksum: checksum,
+    remoteChecksum,
   });
 }

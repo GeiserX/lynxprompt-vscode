@@ -1,3 +1,7 @@
+/**
+ * Blueprint types the extension pushes; each is a TemplateType of the server.
+ * Blueprints read from the server carry any of its types, so they use string.
+ */
 export type BlueprintType =
   | "AGENTS_MD"
   | "CLAUDE_MD"
@@ -5,9 +9,7 @@ export type BlueprintType =
   | "COPILOT_INSTRUCTIONS"
   | "WINDSURF_RULES"
   | "CLINE_RULES"
-  | "AIDER_RULES"
-  | "CONTINUE_RULES"
-  | "CODEX_RULES"
+  | "CODEX_MD"
   | "CUSTOM";
 
 export type BlueprintTier = "SHORT" | "INTERMEDIATE" | "LONG" | "SUPERLONG";
@@ -18,7 +20,7 @@ export interface Blueprint {
   id: string;
   name: string;
   description: string | null;
-  type: BlueprintType;
+  type: string;
   tier: BlueprintTier;
   category: string | null;
   tags: string[];
@@ -38,7 +40,7 @@ export interface BlueprintListItem {
   id: string;
   name: string;
   description: string | null;
-  type: BlueprintType;
+  type: string;
   tier: BlueprintTier;
   category: string | null;
   tags: string[];
@@ -46,6 +48,7 @@ export interface BlueprintListItem {
   downloads: number;
   favorites: number;
   content_checksum: string;
+  repository_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,17 +58,20 @@ export interface BlueprintListResponse {
   total: number;
   limit: number;
   offset: number;
+  has_more: boolean;
 }
 
 export interface CreateBlueprintRequest {
   name: string;
   description?: string;
-  type: BlueprintType;
+  type: string;
   tier?: BlueprintTier;
   category?: string;
   tags?: string[];
   visibility?: BlueprintVisibility;
   content: string;
+  /** Workspace-relative path with "/" separators, so a pull writes the same file */
+  repository_path?: string;
 }
 
 export interface UpdateBlueprintRequest {
@@ -77,6 +83,8 @@ export interface UpdateBlueprintRequest {
   tags?: string[];
   visibility?: BlueprintVisibility;
   content?: string;
+  /** content_checksum last seen; the server answers 409 when the cloud copy changed since */
+  expected_checksum?: string;
 }
 
 export interface UserInfo {
@@ -84,6 +92,10 @@ export interface UserInfo {
   name: string | null;
   email: string;
   image: string | null;
+}
+
+export interface UserResponse {
+  user: UserInfo;
 }
 
 export interface DeviceAuthInitResponse {
@@ -113,7 +125,7 @@ export interface ApiError {
 export interface LocalConfigFile {
   absolutePath: string;
   relativePath: string;
-  type: BlueprintType;
+  type: string;
   linkedBlueprintId?: string;
   status: "synced" | "modified" | "untracked";
 }
@@ -122,4 +134,6 @@ export interface LinkMapping {
   localPath: string;
   blueprintId: string;
   lastChecksum: string;
+  /** The blueprint's content_checksum when this file last matched it */
+  remoteChecksum?: string;
 }

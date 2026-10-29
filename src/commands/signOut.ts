@@ -19,6 +19,7 @@ export async function signOut(api: LynxPromptApi): Promise<void> {
     return;
   }
 
+  await api.revokeToken();
   await api.clearToken();
   await vscode.commands.executeCommand(
     "setContext",

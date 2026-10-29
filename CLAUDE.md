@@ -36,6 +36,7 @@ Press F5 in VS Code to launch the Extension Development Host.
 - `src/commands/generate.ts` — invoke LynxPrompt wizard to create new config
 - `src/utils/configDetector.ts` — glob-based detection of AI config files in workspace
 - `src/utils/fileMapping.ts` — maps blueprint types to file paths (AGENTS_MD -> AGENTS.md)
+- `src/utils/platformTable.ts` — generated from LynxPrompt's shared platform table (`packages/shared/src/platforms.ts`); regenerate with `bun scripts/sync-platform-table.ts <LynxPrompt checkout> <commit>`, never edit by hand
 - `src/views/blueprintTree.ts` — TreeDataProvider for "My Blueprints" sidebar
 - `src/views/localFilesTree.ts` — TreeDataProvider for "Local Config Files" sidebar
 - `tests/` — test suite

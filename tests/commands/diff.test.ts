@@ -218,6 +218,29 @@ describe('diffBlueprint', () => {
     );
   });
 
+  it('looks for an unlinked blueprint at its repository_path first, as pull writes it', async () => {
+    await api.setToken('token');
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprints: [{ id: 'bp-2', name: 'Pkg', type: 'AGENTS_MD', visibility: 'PRIVATE' }], has_more: false }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          blueprint: { id: 'bp-2', name: 'Pkg', type: 'AGENTS_MD', content: '# Cloud', repository_path: 'packages/api/AGENTS.md' },
+        }),
+      });
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Pkg', blueprintId: 'bp-2', type: 'AGENTS_MD' });
+    workspace.fs.stat.mockResolvedValueOnce({ type: 1, size: 100, ctime: 0, mtime: 0 });
+
+    await diffBlueprint(api, linkMappings);
+
+    expect(workspace.fs.stat.mock.calls[0][0].fsPath).toBe('/workspace/packages/api/AGENTS.md');
+  });
+
   it('finds local file via fs.stat fallback when no link mapping matches', async () => {
     await api.setToken('token');
 

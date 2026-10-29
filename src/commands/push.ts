@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { LynxPromptApi } from "../api";
+import { ApiRequestError, LynxPromptApi } from "../api";
 import { LocalFileTreeItem } from "../views/localFilesTree";
 import { BlueprintType, LinkMapping } from "../types";
 import { pathToBlueprintType, blueprintTypeLabel } from "../utils/fileMapping";
@@ -29,7 +29,8 @@ export async function pushConfig(
       canSelectMany: false,
       openLabel: "Select AI config file to push",
       filters: {
-        "AI Config Files": ["md", "mdc", "yml", "json"],
+        // Rules files only: a YAML or JSON tool config can hold API keys
+        "AI Config Files": ["md", "mdc"],
       },
     });
     if (!uris || uris.length === 0) {
@@ -41,7 +42,7 @@ export async function pushConfig(
   const filePath = fileUri.fsPath;
 
   // Detect type
-  let detectedType = pathToBlueprintType(filePath);
+  let detectedType: string | undefined = pathToBlueprintType(filePath);
   if (!detectedType) {
     const typeOptions: Array<{ label: string; type: BlueprintType }> = [
       { label: "AGENTS.md", type: "AGENTS_MD" },
@@ -50,9 +51,7 @@ export async function pushConfig(
       { label: "Copilot Instructions", type: "COPILOT_INSTRUCTIONS" },
       { label: "Windsurf Rules", type: "WINDSURF_RULES" },
       { label: "Cline Rules", type: "CLINE_RULES" },
-      { label: "Aider Rules", type: "AIDER_RULES" },
-      { label: "Continue Rules", type: "CONTINUE_RULES" },
-      { label: "Codex Rules", type: "CODEX_RULES" },
+      { label: "Codex", type: "CODEX_MD" },
       { label: "Custom", type: "CUSTOM" },
     ];
 
@@ -102,23 +101,52 @@ export async function pushConfig(
     }
 
     if (choice.action === "update") {
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: "Updating blueprint...",
-        },
-        async () => {
-          await api.updateBlueprint(linkMapping.blueprintId, {
-            content,
-          });
-          const localChecksum = await computeFileChecksum(fileUri);
-          linkMappings.set(filePath, {
-            localPath: filePath,
-            blueprintId: linkMapping.blueprintId,
-            lastChecksum: localChecksum,
-          });
+      // Send the checksum of the cloud version this file was last in step
+      // with: the server answers 409 if the blueprint changed since, instead
+      // of overwriting those edits
+      let expectedChecksum = linkMapping.remoteChecksum;
+      for (;;) {
+        try {
+          await vscode.window.withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: "Updating blueprint...",
+            },
+            async () => {
+              const updated = await api.updateBlueprint(linkMapping.blueprintId, {
+                content,
+                expected_checksum: expectedChecksum,
+              });
+              const localChecksum = await computeFileChecksum(fileUri);
+              linkMappings.set(filePath, {
+                localPath: filePath,
+                blueprintId: linkMapping.blueprintId,
+                lastChecksum: localChecksum,
+                remoteChecksum: updated.content_checksum,
+              });
+            }
+          );
+          break;
+        } catch (error) {
+          if (!(error instanceof ApiRequestError && error.status === 409)) {
+            throw error;
+          }
+          const conflict = await vscode.window.showWarningMessage(
+            "The blueprint was changed in the cloud since this file was last pulled or pushed. Overwrite the cloud version?",
+            "Show Diff",
+            "Overwrite",
+            "Cancel"
+          );
+          if (conflict === "Show Diff") {
+            await vscode.commands.executeCommand("lynxprompt.diffBlueprint", fileUri);
+            return;
+          }
+          if (conflict !== "Overwrite") {
+            return;
+          }
+          expectedChecksum = undefined;
         }
-      );
+      }
 
       vscode.window.showInformationMessage(
         `Blueprint ${linkMapping.blueprintId} updated.`
@@ -170,6 +198,7 @@ export async function pushConfig(
         type: detectedType,
         visibility: visibility.value,
         content,
+        repository_path: repositoryPath(fileUri),
       });
 
       // Store link mapping with local checksum
@@ -178,6 +207,7 @@ export async function pushConfig(
         localPath: filePath,
         blueprintId: created.id,
         lastChecksum: localChecksum,
+        remoteChecksum: created.content_checksum,
       });
     }
   );
@@ -188,4 +218,17 @@ export async function pushConfig(
 
   await vscode.commands.executeCommand("lynxprompt.refreshBlueprints");
   await vscode.commands.executeCommand("lynxprompt.refreshLocalFiles");
+}
+
+/**
+ * The file's path in its workspace folder with "/" separators, stored with
+ * the blueprint so a pull in another checkout writes the same file (a nested
+ * packages/api/AGENTS.md, not the root one). Undefined outside a workspace.
+ */
+function repositoryPath(fileUri: vscode.Uri): string | undefined {
+  const folder = vscode.workspace.getWorkspaceFolder(fileUri);
+  if (!folder) {
+    return undefined;
+  }
+  return path.relative(folder.uri.fsPath, fileUri.fsPath).split(path.sep).join("/");
 }

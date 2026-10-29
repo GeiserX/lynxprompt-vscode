@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { LynxPromptApi } from "./api";
+import { LynxPromptApi, createPkcePair } from "./api";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_DURATION_MS = 300_000; // 5 minutes
@@ -15,7 +15,8 @@ export async function performDeviceAuth(api: LynxPromptApi): Promise<boolean> {
       try {
         progress.report({ message: "Initiating device authentication..." });
 
-        const initResponse = await api.initDeviceAuth();
+        const pkce = createPkcePair();
+        const initResponse = await api.initDeviceAuth(pkce.challenge);
 
         // Open browser for user to sign in
         const opened = await vscode.env.openExternal(
@@ -40,7 +41,8 @@ export async function performDeviceAuth(api: LynxPromptApi): Promise<boolean> {
           await sleep(POLL_INTERVAL_MS);
 
           const pollResponse = await api.pollDeviceAuth(
-            initResponse.session_id
+            initResponse.session_id,
+            pkce.verifier
           );
 
           if (pollResponse.status === "completed" && pollResponse.token) {

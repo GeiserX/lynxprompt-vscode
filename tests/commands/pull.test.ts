@@ -423,43 +423,117 @@ describe('pullBlueprint', () => {
     );
   });
 
-  it('handles BlueprintTreeItem with existing linked file that still exists', async () => {
-    await api.setToken('token');
-
-    // Create a BlueprintTreeItem
-    const bp = {
+  const linkedTreeItem = () =>
+    new BlueprintTreeItem({
       id: 'bp-1',
       name: 'Test',
       description: null,
-      type: 'AGENTS_MD' as const,
-      tier: 'SHORT' as const,
-      visibility: 'PRIVATE' as const,
+      type: 'AGENTS_MD',
+      tier: 'SHORT',
+      category: null,
+      visibility: 'PRIVATE',
       tags: [],
       downloads: 0,
       favorites: 0,
       content_checksum: 'abc',
+      repository_path: null,
       created_at: '',
       updated_at: '',
-    };
-    const treeItem = new BlueprintTreeItem(bp);
+    });
 
-    // Link mapping exists and file exists
+  it('opens a linked file without writing when the cloud version is the same', async () => {
+    await api.setToken('token');
     linkMappings.set('/workspace/AGENTS.md', {
       localPath: '/workspace/AGENTS.md',
       blueprintId: 'bp-1',
       lastChecksum: 'abc',
     });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        blueprint: { id: 'bp-1', name: 'Test', type: 'AGENTS_MD', content: '# Same', repository_path: null, content_checksum: 'remote-1' },
+      }),
+    });
+    workspace.fs.stat.mockResolvedValue({ type: 1 });
+    workspace.fs.readFile.mockResolvedValue(Buffer.from('# Same'));
 
-    // File exists
-    workspace.fs.stat.mockResolvedValueOnce({ type: 1 });
+    await pullBlueprint(api, linkMappings, linkedTreeItem());
 
-    await pullBlueprint(api, linkMappings, treeItem);
-
-    // Should open the existing file, not fetch from API
-    expect(workspace.openTextDocument).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(workspace.fs.writeFile).not.toHaveBeenCalled();
     expect(window.showTextDocument).toHaveBeenCalled();
-    // Should NOT have called fetch (no need to get blueprint)
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(linkMappings.get('/workspace/AGENTS.md')?.remoteChecksum).toBe('remote-1');
+  });
+
+  it('fetches the cloud version of a linked blueprint and offers to overwrite when it changed', async () => {
+    await api.setToken('token');
+    // Linked to a nested file, not the path the type gives
+    linkMappings.set('/workspace/packages/api/AGENTS.md', {
+      localPath: '/workspace/packages/api/AGENTS.md',
+      blueprintId: 'bp-1',
+      lastChecksum: 'abc',
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        blueprint: { id: 'bp-1', name: 'Test', type: 'AGENTS_MD', content: '# Edited on the web', repository_path: null, content_checksum: 'remote-2' },
+      }),
+    });
+    workspace.fs.stat.mockResolvedValue({ type: 1 });
+    workspace.fs.readFile.mockResolvedValue(Buffer.from('# Old local'));
+    window.showWarningMessage.mockResolvedValueOnce('Overwrite');
+
+    await pullBlueprint(api, linkMappings, linkedTreeItem());
+
+    expect(window.showWarningMessage).toHaveBeenCalledWith(
+      expect.stringContaining('differs from the cloud version'),
+      expect.anything(),
+      'Overwrite',
+      'Show Diff',
+      'Cancel'
+    );
+    const [uri, data] = workspace.fs.writeFile.mock.calls[0];
+    expect(uri.fsPath).toBe('/workspace/packages/api/AGENTS.md');
+    expect(Buffer.from(data).toString()).toBe('# Edited on the web');
+  });
+
+  it('refuses a repository_path that escapes the workspace', async () => {
+    await api.setToken('token');
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ blueprints: [{ id: 'bp-1', name: 'Evil', type: 'AGENTS_MD', visibility: 'PUBLIC' }], has_more: false }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprint: { id: 'bp-1', name: 'Evil', type: 'AGENTS_MD', content: 'x', repository_path: '../../.bashrc' } }),
+      });
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Evil', blueprintId: 'bp-1' });
+
+    await pullBlueprint(api, linkMappings);
+
+    expect(workspace.fs.writeFile).not.toHaveBeenCalled();
+    expect(workspace.fs.stat).not.toHaveBeenCalled();
+    expect(window.showErrorMessage).toHaveBeenCalledWith(expect.stringContaining('outside the workspace'));
+  });
+
+  it('writes a Cline rule to .cline/rules/ when a legacy .clinerules file exists', async () => {
+    await api.setToken('token');
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ blueprints: [{ id: 'bp-1', name: 'C', type: 'CLINE_RULES', visibility: 'PRIVATE' }], has_more: false }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprint: { id: 'bp-1', name: 'C', type: 'CLINE_RULES', content: '# Cline', repository_path: null } }),
+      });
+    window.showQuickPick.mockResolvedValueOnce({ label: 'C', blueprintId: 'bp-1' });
+    workspace.fs.stat
+      .mockResolvedValueOnce({ type: 1 }) // .clinerules is a file
+      .mockRejectedValueOnce(new Error('not found')); // target does not exist yet
+
+    await pullBlueprint(api, linkMappings);
+
+    expect(workspace.fs.writeFile.mock.calls[0][0].fsPath).toBe('/workspace/.cline/rules/project.md');
   });
 
   it('handles BlueprintTreeItem with stale linked file (deleted)', async () => {
