@@ -42,7 +42,7 @@ export async function pushConfig(
   const filePath = fileUri.fsPath;
 
   // Detect type
-  let detectedType = pathToBlueprintType(filePath);
+  let detectedType: string | undefined = pathToBlueprintType(filePath);
   if (!detectedType) {
     const typeOptions: Array<{ label: string; type: BlueprintType }> = [
       { label: "AGENTS.md", type: "AGENTS_MD" },

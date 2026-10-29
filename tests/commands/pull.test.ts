@@ -499,6 +499,43 @@ describe('pullBlueprint', () => {
     expect(Buffer.from(data).toString()).toBe('# Edited on the web');
   });
 
+  it('refuses a repository_path that escapes the workspace', async () => {
+    await api.setToken('token');
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ blueprints: [{ id: 'bp-1', name: 'Evil', type: 'AGENTS_MD', visibility: 'PUBLIC' }], has_more: false }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprint: { id: 'bp-1', name: 'Evil', type: 'AGENTS_MD', content: 'x', repository_path: '../../.bashrc' } }),
+      });
+    window.showQuickPick.mockResolvedValueOnce({ label: 'Evil', blueprintId: 'bp-1' });
+
+    await pullBlueprint(api, linkMappings);
+
+    expect(workspace.fs.writeFile).not.toHaveBeenCalled();
+    expect(workspace.fs.stat).not.toHaveBeenCalled();
+    expect(window.showErrorMessage).toHaveBeenCalledWith(expect.stringContaining('outside the workspace'));
+  });
+
+  it('writes a Cline rule to .cline/rules/ when a legacy .clinerules file exists', async () => {
+    await api.setToken('token');
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ blueprints: [{ id: 'bp-1', name: 'C', type: 'CLINE_RULES', visibility: 'PRIVATE' }], has_more: false }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ blueprint: { id: 'bp-1', name: 'C', type: 'CLINE_RULES', content: '# Cline', repository_path: null } }),
+      });
+    window.showQuickPick.mockResolvedValueOnce({ label: 'C', blueprintId: 'bp-1' });
+    workspace.fs.stat
+      .mockResolvedValueOnce({ type: 1 }) // .clinerules is a file
+      .mockRejectedValueOnce(new Error('not found')); // target does not exist yet
+
+    await pullBlueprint(api, linkMappings);
+
+    expect(workspace.fs.writeFile.mock.calls[0][0].fsPath).toBe('/workspace/.cline/rules/project.md');
+  });
+
   it('handles BlueprintTreeItem with stale linked file (deleted)', async () => {
     await api.setToken('token');
 

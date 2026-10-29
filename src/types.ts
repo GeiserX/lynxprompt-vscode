@@ -64,7 +64,7 @@ export interface BlueprintListResponse {
 export interface CreateBlueprintRequest {
   name: string;
   description?: string;
-  type: BlueprintType;
+  type: string;
   tier?: BlueprintTier;
   category?: string;
   tags?: string[];
@@ -125,7 +125,7 @@ export interface ApiError {
 export interface LocalConfigFile {
   absolutePath: string;
   relativePath: string;
-  type: BlueprintType;
+  type: string;
   linkedBlueprintId?: string;
   status: "synced" | "modified" | "untracked";
 }

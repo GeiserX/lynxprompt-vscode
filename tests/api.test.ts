@@ -320,6 +320,15 @@ describe('LynxPromptApi', () => {
       await expect(api.revokeToken()).resolves.toBeUndefined();
     });
 
+    it('gives up after a timeout, so sign-out never hangs on a dead server', async () => {
+      await api.setToken('tok-1');
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
+
+      await api.revokeToken();
+
+      expect(mockFetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    });
+
     it('does nothing without a token', async () => {
       await api.revokeToken();
       expect(mockFetch).not.toHaveBeenCalled();

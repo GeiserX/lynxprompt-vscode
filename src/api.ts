@@ -161,7 +161,12 @@ export class LynxPromptApi {
       return;
     }
     try {
-      await this.request<unknown>("POST", "/api/cli-auth/revoke");
+      // Direct fetch with a timeout: an unreachable server must not hold up sign-out
+      await fetch(`${this.getBaseUrl()}/api/cli-auth/revoke`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this._token}` },
+        signal: AbortSignal.timeout(10_000),
+      });
     } catch {
       // Offline, or the token is already invalid
     }

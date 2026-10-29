@@ -4,7 +4,7 @@ import { LynxPromptApi } from "../api";
 import { BlueprintTreeItem } from "../views/blueprintTree";
 import { LocalFileTreeItem } from "../views/localFilesTree";
 import { LinkMapping } from "../types";
-import { blueprintTypeToPath } from "../utils/fileMapping";
+import { blueprintTypeToPath, resolveInside } from "../utils/fileMapping";
 
 export async function diffBlueprint(
   api: LynxPromptApi,
@@ -88,7 +88,10 @@ export async function diffBlueprint(
         blueprint.repository_path ||
         blueprintTypeToPath(blueprint.type, blueprint.name, blueprint.content);
       for (const folder of workspaceFolders) {
-        const candidatePath = path.join(folder.uri.fsPath, relativePath);
+        const candidatePath = resolveInside(folder.uri.fsPath, relativePath);
+        if (!candidatePath) {
+          continue;
+        }
         try {
           await vscode.workspace.fs.stat(vscode.Uri.file(candidatePath));
           localFilePath = candidatePath;

@@ -3,7 +3,7 @@ import * as path from "path";
 import { LynxPromptApi } from "../api";
 import { BlueprintTreeItem } from "../views/blueprintTree";
 import { LinkMapping } from "../types";
-import { blueprintTypeToPath } from "../utils/fileMapping";
+import { blueprintTypeToPath, resolveInside } from "../utils/fileMapping";
 import { computeFileChecksum } from "../utils/configDetector";
 
 export async function pullBlueprint(
@@ -105,9 +105,19 @@ export async function pullBlueprint(
   // otherwise derive from type
   const relativePath = linkedPath
     ? path.relative(targetFolder.uri.fsPath, linkedPath)
-    : blueprint.repository_path ||
-      blueprintTypeToPath(blueprint.type, blueprint.name, blueprint.content);
-  const absolutePath = linkedPath ?? path.join(targetFolder.uri.fsPath, relativePath);
+    : await clineRulesPath(
+        targetFolder.uri.fsPath,
+        blueprint.repository_path ||
+          blueprintTypeToPath(blueprint.type, blueprint.name, blueprint.content)
+      );
+  const absolutePath =
+    linkedPath ?? resolveInside(targetFolder.uri.fsPath, relativePath);
+  if (!absolutePath) {
+    vscode.window.showErrorMessage(
+      `Blueprint "${blueprint.name}" points outside the workspace (${relativePath}); nothing was written.`
+    );
+    return;
+  }
   const targetUri = vscode.Uri.file(absolutePath);
 
   // Check if file already exists
@@ -208,6 +218,27 @@ export async function pullBlueprint(
 
   // Refresh local files tree
   await vscode.commands.executeCommand("lynxprompt.refreshLocalFiles");
+}
+
+/**
+ * Cline reads a legacy .clinerules FILE or a .clinerules/ folder, and both
+ * cannot exist at once: with the file present, a .clinerules/ rule goes to
+ * .cline/rules/ instead, as `lynxp pull` does.
+ */
+async function clineRulesPath(root: string, file: string): Promise<string> {
+  const parts = file.replace(/\\/g, "/").split("/");
+  if (parts.length < 2 || parts[0] !== ".clinerules") {
+    return file;
+  }
+  try {
+    const stat = await vscode.workspace.fs.stat(vscode.Uri.file(path.join(root, ".clinerules")));
+    if (stat.type !== vscode.FileType.File) {
+      return file;
+    }
+  } catch {
+    return file;
+  }
+  return [".cline", "rules", ...parts.slice(1)].join("/");
 }
 
 function findLocalPathForBlueprint(

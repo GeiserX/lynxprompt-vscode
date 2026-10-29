@@ -1,5 +1,4 @@
 import * as path from "path";
-import { BlueprintType } from "../types";
 import {
   COMMAND_FILES,
   MCP_BLUEPRINT_TYPE,
@@ -55,7 +54,7 @@ function slug(text: string): string {
 /**
  * Detects the BlueprintType from a file path.
  */
-export function pathToBlueprintType(filePath: string): BlueprintType | undefined {
+export function pathToBlueprintType(filePath: string): string | undefined {
   const basename = path.basename(filePath);
   const normalized = filePath.replace(/\\/g, "/");
 
@@ -85,8 +84,41 @@ export function pathToBlueprintType(filePath: string): BlueprintType | undefined
   if (basename === "CODEX.md") {
     return "CODEX_MD";
   }
+  // Any other rules file the shared platform table writes (GEMINI.md,
+  // .devin/rules/project.md, .clinerules/project.md...), so a pulled file is
+  // listed and watched like the others
+  for (const [type, file] of Object.entries(RULE_FILES)) {
+    if (normalized === file || normalized.endsWith(`/${file}`)) {
+      return type;
+    }
+  }
 
   return undefined;
+}
+
+/** Workspace globs for every rules file the shared platform table writes. */
+export const RULE_FILE_GLOBS: string[] = [...new Set(Object.values(RULE_FILES))].map(
+  (file) => `**/${file}`
+);
+
+/**
+ * The absolute path of `relativePath` under `root`, or undefined when it
+ * escapes the root (a "../" path, an absolute path). Paths from the server
+ * (repository_path) go through this before anything is read or written.
+ */
+export function resolveInside(root: string, relativePath: string): string | undefined {
+  const resolved = path.resolve(root, relativePath);
+  const rel = path.relative(path.resolve(root), resolved);
+  if (
+    path.isAbsolute(relativePath) ||
+    rel === "" ||
+    rel === ".." ||
+    rel.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(rel)
+  ) {
+    return undefined;
+  }
+  return resolved;
 }
 
 /**

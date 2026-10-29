@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { blueprintTypeToPath, pathToBlueprintType, blueprintTypeLabel } from '../../src/utils/fileMapping';
+import { blueprintTypeToPath, pathToBlueprintType, blueprintTypeLabel, resolveInside } from '../../src/utils/fileMapping';
 
 describe('pathToBlueprintType', () => {
   it('detects AGENTS.md', () => {
@@ -44,6 +44,13 @@ describe('pathToBlueprintType', () => {
 
   it('detects CODEX.md as the server type CODEX_MD', () => {
     expect(pathToBlueprintType('/workspace/CODEX.md')).toBe('CODEX_MD');
+  });
+
+  it('detects every rules file pull writes from the shared table', () => {
+    expect(pathToBlueprintType('/workspace/GEMINI.md')).toBe('GEMINI_MD');
+    expect(pathToBlueprintType('/workspace/.devin/rules/project.md')).toBe('WINDSURF_RULES');
+    expect(pathToBlueprintType('/workspace/.clinerules/project.md')).toBe('CLINE_RULES');
+    expect(pathToBlueprintType('/workspace/.kiro/steering/project.md')).toBe('KIRO_STEERING');
   });
 
   it('returns undefined for unknown files', () => {
@@ -115,5 +122,18 @@ describe('blueprintTypeLabel', () => {
 
   it('returns raw type for unknown type', () => {
     expect(blueprintTypeLabel('UNKNOWN' as any)).toBe('UNKNOWN');
+  });
+});
+
+describe('resolveInside', () => {
+  it('resolves a relative path under the root', () => {
+    expect(resolveInside('/workspace', 'packages/api/AGENTS.md')).toBe('/workspace/packages/api/AGENTS.md');
+  });
+
+  it('rejects paths that escape the root', () => {
+    expect(resolveInside('/workspace', '../outside.md')).toBeUndefined();
+    expect(resolveInside('/workspace', 'a/../../outside.md')).toBeUndefined();
+    expect(resolveInside('/workspace', '/etc/passwd')).toBeUndefined();
+    expect(resolveInside('/workspace', '')).toBeUndefined();
   });
 });

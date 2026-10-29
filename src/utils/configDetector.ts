@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as crypto from "crypto";
-import { LocalConfigFile, LinkMapping, BlueprintType } from "../types";
-import { pathToBlueprintType } from "./fileMapping";
+import { LocalConfigFile, LinkMapping } from "../types";
+import { pathToBlueprintType, RULE_FILE_GLOBS } from "./fileMapping";
 
 /**
  * Glob patterns for known AI configuration files.
@@ -10,7 +10,7 @@ import { pathToBlueprintType } from "./fileMapping";
  * Rules files only: a JSON or YAML tool config (.aider.conf.yml,
  * .continue/config.json) can hold API keys, so it is never offered for push.
  */
-const CONFIG_GLOBS: string[] = [
+const CONFIG_GLOBS: string[] = [...new Set([
   "**/AGENTS.md",
   "**/CLAUDE.md",
   "**/.cursor/rules/*.mdc",
@@ -20,7 +20,8 @@ const CONFIG_GLOBS: string[] = [
   "**/.windsurfrules",
   "**/.clinerules",
   "**/CODEX.md",
-];
+  ...RULE_FILE_GLOBS,
+])];
 
 /** Patterns to exclude from scanning */
 const EXCLUDE_PATTERN = "**/node_modules/**";
@@ -90,6 +91,6 @@ export async function computeFileChecksum(uri: vscode.Uri): Promise<string> {
   }
 }
 
-export function getConfigFileType(filePath: string): BlueprintType | undefined {
+export function getConfigFileType(filePath: string): string | undefined {
   return pathToBlueprintType(filePath);
 }

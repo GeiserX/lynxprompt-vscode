@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { LynxPromptApi } from "./api";
 import { LinkMapping } from "./types";
+import { RULE_FILE_GLOBS } from "./utils/fileMapping";
 import { BlueprintTreeProvider } from "./views/blueprintTree";
 import { LocalFilesTreeProvider } from "./views/localFilesTree";
 import { signIn } from "./commands/signIn";
@@ -174,7 +175,7 @@ function setupFileWatchers(
   }
 
   // Watch common AI config file patterns
-  const patterns = [
+  const patterns = [...new Set([
     "**/AGENTS.md",
     "**/CLAUDE.md",
     "**/.cursor/rules/**",
@@ -183,7 +184,8 @@ function setupFileWatchers(
     "**/.windsurfrules",
     "**/.clinerules",
     "**/CODEX.md",
-  ];
+    ...RULE_FILE_GLOBS,
+  ])];
 
   for (const pattern of patterns) {
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);

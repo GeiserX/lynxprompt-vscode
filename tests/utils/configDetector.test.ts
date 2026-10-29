@@ -64,6 +64,9 @@ describe('detectConfigFiles', () => {
 
     const globs = workspace.findFiles.mock.calls.map((c: unknown[]) => c[0]);
     expect(globs).toContain('**/AGENTS.md');
+    expect(globs).toContain('**/GEMINI.md');
+    expect(globs).toContain('**/.devin/rules/project.md');
+    expect(new Set(globs).size).toBe(globs.length);
     expect(globs).not.toContain('**/.aider.conf.yml');
     expect(globs).not.toContain('**/.continue/config.json');
   });
