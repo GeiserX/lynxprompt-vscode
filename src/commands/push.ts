@@ -5,6 +5,7 @@ import { LocalFileTreeItem } from "../views/localFilesTree";
 import { BlueprintType, LinkMapping } from "../types";
 import { pathToBlueprintType, blueprintTypeLabel } from "../utils/fileMapping";
 import { computeFileChecksum } from "../utils/configDetector";
+import { repositoryRoots } from "../utils/repo";
 
 export async function pushConfig(
   api: LynxPromptApi,
@@ -192,6 +193,7 @@ export async function pushConfig(
       title: "Creating blueprint...",
     },
     async () => {
+      const hierarchyId = await repositoryHierarchyId(api, fileUri);
       const created = await api.createBlueprint({
         name: name.trim(),
         description: description?.trim() || undefined,
@@ -199,6 +201,7 @@ export async function pushConfig(
         visibility: visibility.value,
         content,
         repository_path: repositoryPath(fileUri),
+        hierarchy_id: hierarchyId,
       });
 
       // Store link mapping with local checksum
@@ -231,4 +234,42 @@ function repositoryPath(fileUri: vscode.Uri): string | undefined {
     return undefined;
   }
   return path.relative(folder.uri.fsPath, fileUri.fsPath).split(path.sep).join("/");
+}
+
+/**
+ * The id of the hierarchy of the file's repository, created when missing, so
+ * `lynxp diff`/`sync` and the GitHub Action count the blueprint as part of
+ * the repository. A hierarchy made under the legacy key (raw remote hash) is
+ * reused. Undefined when the workspace folder is not a git checkout with a
+ * remote, like the CLI run from that folder.
+ */
+async function repositoryHierarchyId(
+  api: LynxPromptApi,
+  fileUri: vscode.Uri
+): Promise<string | undefined> {
+  const folder = vscode.workspace.getWorkspaceFolder(fileUri);
+  if (!folder) {
+    return undefined;
+  }
+  let gitConfig: string;
+  try {
+    const bytes = await vscode.workspace.fs.readFile(
+      vscode.Uri.file(path.join(folder.uri.fsPath, ".git", "config"))
+    );
+    gitConfig = Buffer.from(bytes).toString("utf-8");
+  } catch {
+    return undefined;
+  }
+  const roots = repositoryRoots(gitConfig);
+  if (!roots) {
+    return undefined;
+  }
+  const hierarchies = await api.listAllHierarchies();
+  const existing =
+    hierarchies.find((h) => h.repository_root === roots.root) ??
+    hierarchies.find((h) => h.repository_root === roots.legacyRoot);
+  if (existing) {
+    return existing.id;
+  }
+  return (await api.ensureHierarchy(folder.name, roots.root)).id;
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { window, workspace, commands, Uri, createMockSecretStorage } from '../__mocks__/vscode';
 import { LynxPromptApi } from '../../src/api';
-import { diffBlueprint } from '../../src/commands/diff';
+import { cloudContentProvider, diffBlueprint } from '../../src/commands/diff';
 import type { LinkMapping } from '../../src/types';
 
 // Mock fetch
@@ -98,13 +98,33 @@ describe('diffBlueprint', () => {
 
     await diffBlueprint(api, linkMappings, Uri.file(filePath) as any);
 
-    expect(workspace.fs.writeFile).toHaveBeenCalled(); // Wrote temp cloud file
     expect(commands.executeCommand).toHaveBeenCalledWith(
       'vscode.diff',
       expect.anything(),
       expect.anything(),
       expect.stringContaining('Local')
     );
+  });
+
+  it('serves the cloud side from memory and writes nothing into the workspace', async () => {
+    await api.setToken('token');
+    const filePath = '/workspace/AGENTS.md';
+    linkMappings.set(filePath, { localPath: filePath, blueprintId: 'bp-9', lastChecksum: 'abc' });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        blueprint: { id: 'bp-9', name: 'Private', type: 'AGENTS_MD', content: '# Secret rules' },
+      }),
+    });
+
+    await diffBlueprint(api, linkMappings, Uri.file(filePath) as any);
+
+    expect(workspace.fs.writeFile).not.toHaveBeenCalled();
+    expect(workspace.fs.createDirectory).not.toHaveBeenCalled();
+    const cloudUri = commands.executeCommand.mock.calls.find((c) => c[0] === 'vscode.diff')![2];
+    expect(cloudUri.scheme).toBe('lynxprompt-cloud');
+    expect(cloudContentProvider.provideTextDocumentContent(cloudUri, {} as any)).toBe('# Secret rules');
   });
 
   it('shows cloud version when no local file found', async () => {
@@ -143,17 +163,14 @@ describe('diffBlueprint', () => {
     );
   });
 
-  it('shows error when no workspace folder for diff output', async () => {
+  it('diffs a linked file even with no workspace folder open', async () => {
     await api.setToken('token');
-    workspace.workspaceFolders = [];
-
     const filePath = '/workspace/AGENTS.md';
     linkMappings.set(filePath, {
       localPath: filePath,
       blueprintId: 'bp-1',
       lastChecksum: 'abc',
     });
-
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -161,18 +178,16 @@ describe('diffBlueprint', () => {
         blueprint: { id: 'bp-1', name: 'Test', type: 'AGENTS_MD', content: '# Cloud' },
       }),
     });
-
-    // Override workspaceFolders to be undefined for the temp file section
-    const origFolders = workspace.workspaceFolders;
     workspace.workspaceFolders = undefined as any;
 
     await diffBlueprint(api, linkMappings, Uri.file(filePath) as any);
 
-    expect(window.showErrorMessage).toHaveBeenCalledWith(
-      'No workspace folder open.'
+    expect(commands.executeCommand).toHaveBeenCalledWith(
+      'vscode.diff',
+      expect.anything(),
+      expect.anything(),
+      expect.stringContaining('Local')
     );
-
-    workspace.workspaceFolders = origFolders;
   });
 
   it('finds local file via link mappings during blueprint-only diff', async () => {

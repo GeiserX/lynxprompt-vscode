@@ -72,6 +72,8 @@ export interface CreateBlueprintRequest {
   content: string;
   /** Workspace-relative path with "/" separators, so a pull writes the same file */
   repository_path?: string;
+  /** The repository's hierarchy, so the CLI and the GitHub Action see the blueprint */
+  hierarchy_id?: string;
 }
 
 export interface UpdateBlueprintRequest {
@@ -112,6 +114,8 @@ export interface DeviceAuthPollResponse {
 export interface HierarchyListItem {
   id: string;
   name: string;
+  /** Hash identifying the repository; see src/utils/repo.ts */
+  repository_root: string;
   description: string | null;
   created_at: string;
   updated_at: string;

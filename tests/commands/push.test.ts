@@ -174,6 +174,69 @@ describe('pushConfig', () => {
     expect(linkMappings.get(fileUri.fsPath)?.remoteChecksum).toBe('remote-1');
   });
 
+  describe('repository hierarchy', () => {
+    const gitConfig = '[remote "origin"]\n\turl = git@github.com:GeiserX/LynxPrompt.git\n';
+    const created = {
+      ok: true,
+      status: 201,
+      json: async () => ({ blueprint: { id: 'new-1', content_checksum: 'remote-1' } }),
+    };
+
+    async function pushNested(): Promise<void> {
+      await api.setToken('token');
+      window.showOpenDialog.mockResolvedValueOnce([Uri.file('/workspace/packages/api/AGENTS.md')]);
+      workspace.fs.readFile
+        .mockResolvedValueOnce(Buffer.from('# Package rules'))
+        .mockResolvedValueOnce(Buffer.from(gitConfig));
+      window.showInputBox.mockResolvedValueOnce('API rules').mockResolvedValueOnce('');
+      window.showQuickPick.mockResolvedValueOnce({ label: 'Private', value: 'PRIVATE' });
+      await pushConfig(api, linkMappings);
+    }
+
+    function createBody(): Record<string, unknown> {
+      const call = mockFetch.mock.calls.find(
+        (c) => String(c[0]).endsWith('/api/v1/blueprints') && c[1].method === 'POST'
+      );
+      return JSON.parse(call![1].body);
+    }
+
+    it('creates the hierarchy under the normalized remote and sends hierarchy_id', async () => {
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ hierarchies: [], has_more: false }) })
+        .mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({ hierarchy: { id: 'ha_new' } }) })
+        .mockResolvedValueOnce(created);
+
+      await pushNested();
+
+      const hierarchyCall = mockFetch.mock.calls.find(
+        (c) => String(c[0]).endsWith('/api/v1/hierarchies') && c[1].method === 'POST'
+      );
+      expect(JSON.parse(hierarchyCall![1].body)).toEqual({
+        name: 'workspace',
+        repository_root: 'eb2e56c7498b9899',
+      });
+      expect(createBody().hierarchy_id).toBe('ha_new');
+      expect(createBody().repository_path).toBe('packages/api/AGENTS.md');
+    });
+
+    it('reuses a hierarchy made under the legacy raw-remote key', async () => {
+      const { createHash } = await import('crypto');
+      const legacy = createHash('sha256').update('git@github.com:GeiserX/LynxPrompt.git').digest('hex').slice(0, 16);
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ hierarchies: [{ id: 'ha_old', repository_root: legacy }], has_more: false }),
+        })
+        .mockResolvedValueOnce(created);
+
+      await pushNested();
+
+      expect(createBody().hierarchy_id).toBe('ha_old');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('pushes CODEX.md under the server type CODEX_MD, not CUSTOM', async () => {
     await api.setToken('token');
     const fileUri = Uri.file('/workspace/CODEX.md');

@@ -8,7 +8,7 @@ import { signIn } from "./commands/signIn";
 import { signOut } from "./commands/signOut";
 import { pullBlueprint } from "./commands/pull";
 import { pushConfig } from "./commands/push";
-import { diffBlueprint } from "./commands/diff";
+import { CLOUD_SCHEME, cloudContentProvider, diffBlueprint } from "./commands/diff";
 import { generateConfig, convertFormat } from "./commands/generate";
 import { getBaseUrl } from "./utils/baseUrl";
 
@@ -52,7 +52,11 @@ export async function activate(
     }
   );
 
-  context.subscriptions.push(blueprintView, localFilesView);
+  context.subscriptions.push(
+    blueprintView,
+    localFilesView,
+    vscode.workspace.registerTextDocumentContentProvider(CLOUD_SCHEME, cloudContentProvider)
+  );
 
   // Register commands
   context.subscriptions.push(
