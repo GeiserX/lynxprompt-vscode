@@ -256,5 +256,8 @@
     "eslint": "^8.56.0",
     "typescript": "^5.3.3",
     "vitest": "^4.1.4"
+  },
+  "overrides": {
+    "@azure/msal-node": "^7.1.0"
   }
 }
