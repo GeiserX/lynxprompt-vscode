@@ -41,7 +41,7 @@ export async function pullBlueprint(
     const response = await api.listBlueprints(200);
     if (response.blueprints.length === 0) {
       vscode.window.showInformationMessage(
-        "You have no blueprints. Create one at lynxprompt.com"
+        "You have no blueprints. Create one at lynxprompt.geiser.cloud"
       );
       return;
     }

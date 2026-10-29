@@ -10,7 +10,7 @@
     "type": "git",
     "url": "https://github.com/GeiserX/lynxprompt-vscode"
   },
-  "homepage": "https://lynxprompt.com",
+  "homepage": "https://lynxprompt.geiser.cloud",
   "bugs": {
     "url": "https://github.com/GeiserX/lynxprompt-vscode/issues"
   },
@@ -212,7 +212,7 @@
       "properties": {
         "lynxprompt.apiUrl": {
           "type": "string",
-          "default": "https://lynxprompt.com",
+          "default": "https://lynxprompt.geiser.cloud",
           "description": "Base URL for the LynxPrompt API. Change this if you are self-hosting LynxPrompt.",
           "format": "uri"
         },

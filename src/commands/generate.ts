@@ -1,15 +1,13 @@
 import * as vscode from "vscode";
 import { BlueprintType } from "../types";
 import { blueprintTypeLabel } from "../utils/fileMapping";
+import { getBaseUrl } from "../utils/baseUrl";
 
 /**
  * Opens the LynxPrompt wizard in the user's default browser.
  */
 export async function generateConfig(): Promise<void> {
-  const config = vscode.workspace.getConfiguration("lynxprompt");
-  const baseUrl = config
-    .get<string>("apiUrl", "https://lynxprompt.com")
-    .replace(/\/+$/, "");
+  const baseUrl = getBaseUrl();
 
   const wizardUrl = `${baseUrl}/wizard`;
   await vscode.env.openExternal(vscode.Uri.parse(wizardUrl));

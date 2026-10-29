@@ -16,7 +16,7 @@ describe('LynxPromptApi', () => {
     api = new LynxPromptApi(secrets as any);
     workspace.getConfiguration.mockReturnValue({
       get: vi.fn().mockImplementation((key: string, defaultValue?: unknown) => {
-        if (key === 'apiUrl') return 'https://lynxprompt.com';
+        if (key === 'apiUrl') return 'https://lynxprompt.geiser.cloud';
         return defaultValue;
       }),
       update: vi.fn(),
@@ -82,7 +82,7 @@ describe('LynxPromptApi', () => {
       await api.getUser();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/user',
+        'https://lynxprompt.geiser.cloud/api/v1/user',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -161,7 +161,7 @@ describe('LynxPromptApi', () => {
 
     it('strips trailing slashes from base URL', async () => {
       workspace.getConfiguration.mockReturnValue({
-        get: vi.fn().mockReturnValue('https://lynxprompt.com///'),
+        get: vi.fn().mockReturnValue('https://lynxprompt.geiser.cloud///'),
         update: vi.fn(),
         has: vi.fn(),
         inspect: vi.fn(),
@@ -175,7 +175,42 @@ describe('LynxPromptApi', () => {
 
       await api.getUser();
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/user',
+        'https://lynxprompt.geiser.cloud/api/v1/user',
+        expect.any(Object)
+      );
+    });
+
+    it.each(['https://lynxprompt.com', 'https://lynxprompt.com/'])(
+      'sends a saved legacy official URL (%s) to the new host',
+      async (saved) => {
+        workspace.getConfiguration.mockReturnValue({
+          get: vi.fn().mockReturnValue(saved),
+          update: vi.fn(),
+          has: vi.fn(),
+          inspect: vi.fn(),
+        });
+        mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: '1' }) });
+
+        await api.getUser();
+        expect(mockFetch).toHaveBeenCalledWith(
+          'https://lynxprompt.geiser.cloud/api/v1/user',
+          expect.any(Object)
+        );
+      }
+    );
+
+    it('keeps a custom self-hosted URL', async () => {
+      workspace.getConfiguration.mockReturnValue({
+        get: vi.fn().mockReturnValue('https://lp.example.com/'),
+        update: vi.fn(),
+        has: vi.fn(),
+        inspect: vi.fn(),
+      });
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ id: '1' }) });
+
+      await api.getUser();
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://lp.example.com/api/v1/user',
         expect.any(Object)
       );
     });
@@ -193,7 +228,7 @@ describe('LynxPromptApi', () => {
       const result = await api.initDeviceAuth();
       expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/cli-auth/init',
+        'https://lynxprompt.geiser.cloud/api/cli-auth/init',
         expect.objectContaining({
           method: 'POST',
           headers: expect.not.objectContaining({ Authorization: expect.any(String) }),
@@ -212,7 +247,7 @@ describe('LynxPromptApi', () => {
       const result = await api.pollDeviceAuth('sess-123');
       expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/cli-auth/poll?session=sess-123',
+        'https://lynxprompt.geiser.cloud/api/cli-auth/poll?session=sess-123',
         expect.objectContaining({ method: 'GET' })
       );
     });
@@ -226,7 +261,7 @@ describe('LynxPromptApi', () => {
 
       await api.pollDeviceAuth('sess with spaces');
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/cli-auth/poll?session=sess%20with%20spaces',
+        'https://lynxprompt.geiser.cloud/api/cli-auth/poll?session=sess%20with%20spaces',
         expect.any(Object)
       );
     });
@@ -248,7 +283,7 @@ describe('LynxPromptApi', () => {
       const result = await api.listBlueprints();
       expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/blueprints?limit=100&offset=0',
+        'https://lynxprompt.geiser.cloud/api/v1/blueprints?limit=100&offset=0',
         expect.any(Object)
       );
     });
@@ -262,7 +297,7 @@ describe('LynxPromptApi', () => {
 
       await api.listBlueprints(50, 10, 'PUBLIC');
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/blueprints?limit=50&offset=10&visibility=PUBLIC',
+        'https://lynxprompt.geiser.cloud/api/v1/blueprints?limit=50&offset=10&visibility=PUBLIC',
         expect.any(Object)
       );
     });
@@ -278,7 +313,7 @@ describe('LynxPromptApi', () => {
       const result = await api.getBlueprint('1');
       expect(result).toEqual(bp);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/blueprints/1',
+        'https://lynxprompt.geiser.cloud/api/v1/blueprints/1',
         expect.any(Object)
       );
     });
@@ -292,7 +327,7 @@ describe('LynxPromptApi', () => {
 
       await api.getBlueprint('a/b');
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/blueprints/a%2Fb',
+        'https://lynxprompt.geiser.cloud/api/v1/blueprints/a%2Fb',
         expect.any(Object)
       );
     });
@@ -313,7 +348,7 @@ describe('LynxPromptApi', () => {
 
       expect(result).toEqual(bp);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/blueprints',
+        'https://lynxprompt.geiser.cloud/api/v1/blueprints',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ name: 'New BP', type: 'AGENTS_MD', content: '# Test' }),
@@ -332,7 +367,7 @@ describe('LynxPromptApi', () => {
       const result = await api.updateBlueprint('1', { name: 'Updated' });
       expect(result).toEqual(bp);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/blueprints/1',
+        'https://lynxprompt.geiser.cloud/api/v1/blueprints/1',
         expect.objectContaining({ method: 'PUT' })
       );
     });
@@ -345,7 +380,7 @@ describe('LynxPromptApi', () => {
 
       await api.deleteBlueprint('1');
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://lynxprompt.com/api/v1/blueprints/1',
+        'https://lynxprompt.geiser.cloud/api/v1/blueprints/1',
         expect.objectContaining({ method: 'DELETE' })
       );
     });

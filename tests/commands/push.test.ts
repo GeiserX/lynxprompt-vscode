@@ -27,7 +27,7 @@ describe('pushConfig', () => {
     api = new LynxPromptApi(secrets as any);
     linkMappings = new Map();
     workspace.getConfiguration.mockReturnValue({
-      get: vi.fn().mockReturnValue('https://lynxprompt.com'),
+      get: vi.fn().mockReturnValue('https://lynxprompt.geiser.cloud'),
       update: vi.fn(),
       has: vi.fn(),
       inspect: vi.fn(),

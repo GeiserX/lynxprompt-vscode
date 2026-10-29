@@ -33,7 +33,7 @@ describe('extension', () => {
 
     workspace.getConfiguration.mockReturnValue({
       get: vi.fn().mockImplementation((key: string, defaultValue?: unknown) => {
-        if (key === 'apiUrl') return 'https://lynxprompt.com';
+        if (key === 'apiUrl') return 'https://lynxprompt.geiser.cloud';
         if (key === 'showStatusBar') return true;
         if (key === 'watchFileChanges') return true;
         if (key === 'autoDetectConfigFiles') return true;
@@ -149,7 +149,7 @@ describe('extension', () => {
         get: vi.fn().mockImplementation((key: string, defaultValue?: unknown) => {
           if (key === 'showStatusBar') return false;
           if (key === 'watchFileChanges') return true;
-          if (key === 'apiUrl') return 'https://lynxprompt.com';
+          if (key === 'apiUrl') return 'https://lynxprompt.geiser.cloud';
           return defaultValue;
         }),
         update: vi.fn(),
@@ -169,7 +169,7 @@ describe('extension', () => {
         get: vi.fn().mockImplementation((key: string, defaultValue?: unknown) => {
           if (key === 'watchFileChanges') return false;
           if (key === 'showStatusBar') return true;
-          if (key === 'apiUrl') return 'https://lynxprompt.com';
+          if (key === 'apiUrl') return 'https://lynxprompt.geiser.cloud';
           return defaultValue;
         }),
         update: vi.fn(),

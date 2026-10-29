@@ -16,7 +16,7 @@ describe('performDeviceAuth', () => {
     secrets = createMockSecretStorage();
     api = new LynxPromptApi(secrets as any);
     workspace.getConfiguration.mockReturnValue({
-      get: vi.fn().mockReturnValue('https://lynxprompt.com'),
+      get: vi.fn().mockReturnValue('https://lynxprompt.geiser.cloud'),
       update: vi.fn(),
       has: vi.fn(),
       inspect: vi.fn(),
@@ -33,7 +33,7 @@ describe('performDeviceAuth', () => {
         status: 200,
         json: async () => ({
           session_id: 'sess-1',
-          auth_url: 'https://lynxprompt.com/auth?session=sess-1',
+          auth_url: 'https://lynxprompt.geiser.cloud/auth?session=sess-1',
           expires_at: '2025-12-31',
         }),
       })
@@ -73,7 +73,7 @@ describe('performDeviceAuth', () => {
         status: 200,
         json: async () => ({
           session_id: 'sess-1',
-          auth_url: 'https://lynxprompt.com/auth',
+          auth_url: 'https://lynxprompt.geiser.cloud/auth',
           expires_at: '2025-12-31',
         }),
       })
@@ -105,7 +105,7 @@ describe('performDeviceAuth', () => {
         status: 200,
         json: async () => ({
           session_id: 'sess-1',
-          auth_url: 'https://lynxprompt.com/auth',
+          auth_url: 'https://lynxprompt.geiser.cloud/auth',
           expires_at: '2025-12-31',
         }),
       })
@@ -136,7 +136,7 @@ describe('performDeviceAuth', () => {
       status: 200,
       json: async () => ({
         session_id: 'sess-1',
-        auth_url: 'https://lynxprompt.com/auth',
+        auth_url: 'https://lynxprompt.geiser.cloud/auth',
         expires_at: '2025-12-31',
       }),
     });
