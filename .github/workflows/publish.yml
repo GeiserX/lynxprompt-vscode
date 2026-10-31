@@ -27,8 +27,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # The token is not stored in .git/config, so npm ci, lint, the build and
-      # the packaging cannot read it. Only the two git push steps get it.
+      # The token is not stored in .git/config, and npm ci, lint, the build and
+      # the packaging run without GH_TOKEN. Only the two git push steps get it,
+      # with hooks off for their git commands. Code from npm ci could still
+      # tamper with .git/config before them; full isolation needs a separate job.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -76,10 +78,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
-          git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          git diff --staged --quiet || git -c core.hooksPath=/dev/null commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
           AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-          git -c http.https://github.com/.extraheader="$AUTH" pull --rebase origin main
-          git -c http.https://github.com/.extraheader="$AUTH" push origin main
+          git -c core.hooksPath=/dev/null -c http.https://github.com/.extraheader="$AUTH" pull --rebase origin main
+          git -c core.hooksPath=/dev/null -c http.https://github.com/.extraheader="$AUTH" push origin main
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -117,9 +119,12 @@ jobs:
           if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
             echo "$TAG already on origin"
           else
+            status=$?
+            # 2 means the tag is missing; anything else is a failed lookup.
+            [ "$status" -eq 2 ] || { echo "git ls-remote failed ($status)" >&2; exit "$status"; }
             git tag "$TAG"
             AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-            git -c http.https://github.com/.extraheader="$AUTH" push origin "$TAG"
+            git -c core.hooksPath=/dev/null -c http.https://github.com/.extraheader="$AUTH" push origin "$TAG"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
