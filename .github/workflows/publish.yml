@@ -27,8 +27,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # The token is not stored in .git/config, so npm ci, lint, the build and
+      # the packaging cannot read it. Only the two git push steps get it.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -73,8 +77,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
           git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
-          git pull --rebase origin main
-          git push origin main
+          AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.https://github.com/.extraheader="$AUTH" pull --rebase origin main
+          git -c http.https://github.com/.extraheader="$AUTH" push origin main
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Package VSIX
         run: npx @vscode/vsce package --no-git-tag-version -o "lynxprompt-${{ steps.version.outputs.version }}.vsix"
@@ -105,8 +112,17 @@ jobs:
 
       - name: Tag and push
         run: |
-          git tag "v${{ steps.version.outputs.version }}" 2>/dev/null || true
-          git push origin "v${{ steps.version.outputs.version }}" 2>/dev/null || true
+          TAG="v${{ steps.version.outputs.version }}"
+          # A re-run finds the tag already there; any other push failure fails the job.
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG already on origin"
+          else
+            git tag "$TAG"
+            AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+            git -c http.https://github.com/.extraheader="$AUTH" push origin "$TAG"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Create GitHub Release
         continue-on-error: true
