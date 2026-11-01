@@ -238,7 +238,7 @@
     "vscode:prepublish": "npm run build",
     "build": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
-    "lint": "eslint src/ --ext .ts",
+    "lint": "eslint src/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -246,18 +246,19 @@
     "publish": "vsce publish"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.19.43",
     "@types/vscode": "1.125.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.12",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.2",
-    "eslint": "^8.56.0",
+    "eslint": "^10.14.0",
     "typescript": "^5.3.3",
+    "typescript-eslint": "^8.72.1",
     "vitest": "^4.1.4"
   },
   "overrides": {
-    "@azure/msal-node": "^7.1.0"
+    "@azure/msal-node": "^7.1.0",
+    "minimatch": "^11.0.1"
   }
 }
