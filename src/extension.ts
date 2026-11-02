@@ -16,7 +16,6 @@ import { getBaseUrl } from "./utils/baseUrl";
 const LINK_MAPPINGS_KEY = "lynxprompt.linkMappings";
 
 let statusBarItem: vscode.StatusBarItem | undefined;
-let fileWatcher: vscode.FileSystemWatcher | undefined;
 
 export async function activate(
   context: vscode.ExtensionContext
@@ -116,9 +115,6 @@ export async function activate(
 }
 
 export function deactivate(): void {
-  if (fileWatcher) {
-    fileWatcher.dispose();
-  }
   if (statusBarItem) {
     statusBarItem.dispose();
   }
